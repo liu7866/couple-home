@@ -101,3 +101,12 @@ test('GitHub Pages login, photos and writes use a restricted bearer session',asy
  const withoutOrigin=await mf.dispatchFetch(origin+'/api/home',{headers:{Authorization:'Bearer '+token}});assert.equal(withoutOrigin.status,401);
  const logout=await mf.dispatchFetch(origin+'/api/auth',{method:'DELETE',headers});assert.equal(logout.status,200);assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers})).status,401);
 });
+
+test('complete archive is owner-only and preserves sealed letters and full pet without credential tables',async()=>{
+ const denied=await get('/api/backup');assert.equal(denied.status,403);
+ const partner=await get('/api/backup','bob');assert.equal(partner.status,403);
+ const response=await get('/api/backup','alice');assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+ const archive=await response.json();assert.equal(archive.state.v,2);assert.ok(archive.state.letters.some(l=>l.text==='未来见'&&l.openDate==='2099-01-01'));assert.equal(archive.state.pet.xp,20);assert.ok(!('cooldowns' in archive.state.pet));assert.ok(archive.state.photos.length>0);
+ assert.ok(!JSON.stringify(archive).includes('password_hash'));assert.ok(!JSON.stringify(archive).includes('token_hash'));
+ const publicHome=await get('/api/home','alice');assert.ok((await publicHome.json()).state.letters.filter(l=>l.openDate==='2099-01-01').every(l=>l.text===''));
+});
