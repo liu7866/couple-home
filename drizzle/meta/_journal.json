@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792746561030,
+      "tag": "0000_wakeful_lockheed",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792747330406,
+      "tag": "0001_slimy_clea",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792747871691,
+      "tag": "0002_strong_master_mold",
+      "breakpoints": true
+    }
+  ]
+}
