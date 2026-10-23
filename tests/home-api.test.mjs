@@ -110,3 +110,26 @@ test('complete archive is owner-only and preserves sealed letters and full pet w
  assert.ok(!JSON.stringify(archive).includes('password_hash'));assert.ok(!JSON.stringify(archive).includes('token_hash'));
  const publicHome=await get('/api/home','alice');assert.ok((await publicHome.json()).state.letters.filter(l=>l.openDate==='2099-01-01').every(l=>l.text===''));
 });
+
+test('remember-device is opt-in, bounded to 30 days and logout revokes the token',async()=>{
+ const pages='https://pages.example.test',request={method:'POST',headers:{Origin:pages,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.101'},body:JSON.stringify({slot:2,password:'New-cottage#2026',remember:true})};
+ const response=await mf.dispatchFetch(origin+'/api/auth',request);assert.equal(response.status,200);const data=await response.json();assert.ok(data.expiresAt>Date.now()+29*86400000&&data.expiresAt<=Date.now()+30*86400000);const headers={Origin:pages,Authorization:'Bearer '+data.token};assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers})).status,200);await mf.dispatchFetch(origin+'/api/auth',{method:'DELETE',headers});assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers})).status,401);
+});
+test('owner preview restoration replaces pet and moods, preserves photos, and rejects stale revision',async()=>{
+ const archive=await(await get('/api/backup','alice')).json(),before=await(await get('/api/home','alice')).json();archive.state.pet.xp=42;archive.state.moods={'2026-10-20':{1:'想你',2:'晴朗'}};
+ const request=(revision,user='alice')=>mf.dispatchFetch(origin+'/api/restore',{method:'POST',headers:{...identity(user),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({confirmation:'恢复小屋',expectedRevision:revision,data:archive.state})});
+ assert.equal((await request(before.revision,'bob')).status,403);const restored=await request(before.revision);assert.equal(restored.status,200);const result=await restored.json();assert.equal(result.state.pet.xp,42);assert.equal(result.state.moods['2026-10-20'][1],'想你');assert.equal(result.state.photos.length,before.state.photos.length);assert.ok(result.state.letters.some(l=>l.openDate==='2099-01-01'&&l.locked&&l.text===''));
+ assert.equal((await request(before.revision)).status,409);const current=await(await get('/api/home','alice')).json();archive.state.pet.xp=-1;const invalid=await request(current.revision);assert.equal(invalid.status,400);assert.equal((await(await get('/api/home','alice')).json()).state.pet.xp,42);
+});
+test('one-time recovery works without ChatGPT, rotates codes, and revokes existing sessions',async()=>{
+ const ownerHeaders={...identity('alice'),Origin:origin,'Content-Type':'application/json'};
+ const denied=await mf.dispatchFetch(origin+'/api/recovery',{method:'POST',headers:{...identity('bob'),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({slot:2})});assert.equal(denied.status,403);
+ const create=await mf.dispatchFetch(origin+'/api/recovery',{method:'POST',headers:ownerHeaders,body:JSON.stringify({slot:2})});assert.equal(create.status,200);const code=(await create.json()).code;assert.match(code,/^[a-f0-9]{64}$/);
+ const login=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.102'},body:JSON.stringify({slot:2,password:'New-cottage#2026',remember:true})});assert.equal(login.status,200);const oldCookie=login.headers.get('set-cookie').split(';')[0];
+ const preflight=await mf.dispatchFetch(origin+'/api/recovery',{method:'OPTIONS',headers:{Origin:'https://pages.example.test','Access-Control-Request-Method':'PUT','Access-Control-Request-Headers':'content-type'}});assert.equal(preflight.status,204);assert.ok(preflight.headers.get('access-control-allow-methods').includes('PUT'));
+ const reset=codeValue=>mf.dispatchFetch(origin+'/api/recovery',{method:'PUT',headers:{Origin:'https://pages.example.test','Content-Type':'application/json','cf-connecting-ip':'203.0.113.103'},body:JSON.stringify({slot:2,code:codeValue,password:'Recovered-cottage#2026'})});
+ const response=await reset(code);assert.equal(response.status,200);const next=(await response.json()).code;assert.notEqual(next,code);assert.equal((await reset(code)).status,401);assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers:{Cookie:oldCookie}})).status,401);
+ const newLogin=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.104'},body:JSON.stringify({slot:2,password:'Recovered-cottage#2026'})});assert.equal(newLogin.status,200);assert.ok(!newLogin.headers.get('set-cookie').includes('Max-Age'));
+ const archive=await(await get('/api/backup','alice')).json();assert.ok(!JSON.stringify(archive).includes(next));assert.ok(!JSON.stringify(archive).includes('code_hash'));
+ const ownerReset=await mf.dispatchFetch(origin+'/api/passwords',{method:'POST',headers:ownerHeaders,body:JSON.stringify({slot:2,password:'Owner-reset-cottage#2026'})});assert.equal(ownerReset.status,200);assert.equal((await reset(next)).status,401);
+});

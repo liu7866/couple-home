@@ -24,6 +24,7 @@ export async function POST(req:Request){try{
   }
   if(!target)throw new HomeError('密码暂时没有设置成功，请重试。',503);
   await db.batch([
+    db.prepare('DELETE FROM recovery_codes WHERE slot=?').bind(body.slot),
     db.prepare('DELETE FROM home_sessions WHERE user_id=?').bind(target.user_id),
     db.prepare('INSERT INTO member_passwords (slot,user_id,salt,password_hash,version,created_at) VALUES (?,?,?,?,?,?) ON CONFLICT(slot) DO UPDATE SET salt=excluded.salt,password_hash=excluded.password_hash,version=excluded.version,created_at=excluded.created_at').bind(body.slot,target.user_id,password.salt,password.passwordHash,password.version,now),
   ]);

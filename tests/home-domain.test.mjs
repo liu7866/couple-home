@@ -57,3 +57,15 @@ test('invalid dates, unauthorized actors and oversized inputs are rejected',()=>
  assert.throws(()=>applyOperation(s,op('wish.add',{id:crypto.randomUUID(),text:'x'.repeat(101)}),bob,now),HomeError);
  assert.equal(sharedToday(now),'2026-10-24');
 });
+
+test('duet needs two distinct members and expired invitations do not grant growth',()=>{
+ let s=applyOperation(initialState(now),op('pet.duet',{}),alice,now);assert.equal(s.pet.xp,0);assert.equal(s.pet.duet.slot,1);
+ assert.throws(()=>applyOperation(s,op('pet.duet',{}),alice,now+21000),HomeError);
+ s=applyOperation(s,op('pet.duet',{}),bob,now+1000);assert.equal(s.pet.xp,20);assert.equal(s.pet.duet,null);assert.equal(s.pet.careLog[0].action,'duet');
+ let expired=applyOperation(initialState(now),op('pet.duet',{}),alice,now);expired=applyOperation(expired,op('pet.duet',{}),bob,now+300001);assert.equal(expired.pet.xp,0);assert.equal(expired.pet.duet.slot,2);
+});
+
+test('merging a backup restores missing mood slots but preserves newer shared moods',()=>{
+ const current=initialState(now);current.moods={'2026-10-20':{1:'晴朗'}};const backup=initialState(now);backup.moods={'2026-10-20':{1:'想你',2:'需要抱抱'},'2026-10-21':{1:'平静'}};
+ const merged=applyOperation(current,op('import',{data:backup}),alice,now);assert.equal(merged.moods['2026-10-20'][1],'晴朗');assert.equal(merged.moods['2026-10-20'][2],'需要抱抱');assert.equal(merged.moods['2026-10-21'][1],'平静');assert.deepEqual(merged.pet,current.pet);
+});

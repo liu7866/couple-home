@@ -4,7 +4,7 @@ export function matchesPagesOrigin(origin:string|null, configured:string|undefin
 export function bearerToken(value:string|null){const match=value?.match(/^Bearer ([a-f0-9]{64})$/);return match?.[1]||null}
 export function corsHeaders(origin:string){return{
   'Access-Control-Allow-Origin':origin,
-  'Access-Control-Allow-Methods':'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers':'Authorization, Content-Type',
   'Access-Control-Max-Age':'600',
   'Vary':'Origin',

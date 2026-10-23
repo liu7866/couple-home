@@ -56,3 +56,9 @@ export const memberPasswords = sqliteTable('member_passwords', {
   version: text('version').notNull(),
   createdAt: integer('created_at').notNull(),
 });
+
+export const recoveryCodes = sqliteTable('recovery_codes', {
+  slot: integer('slot').primaryKey(),
+  codeHash: text('code_hash').notNull(),
+  createdAt: integer('created_at').notNull(),
+});

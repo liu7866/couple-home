@@ -18,9 +18,9 @@ export async function POST(req:Request){try{
   const verified=await verifyPassword(body.password,record);
   if(!record||!verified)throw new HomeError('密码尚未设置或不正确，请确认身份和密码。',401);
   const pages=matchesPagesOrigin(req.headers.get('origin'),env.PAGES_ORIGIN);
-  const token=randomToken();await db.prepare('INSERT INTO home_sessions (token_hash,key_hash,user_id,expires_at) VALUES (?,?,?,?)').bind(await hashToken(token),record.version,record.user_id,now+(pages?12*3600e3:SESSION_MS)).run();
+  const token=randomToken();await db.prepare('INSERT INTO home_sessions (token_hash,key_hash,user_id,expires_at) VALUES (?,?,?,?)').bind(await hashToken(token),record.version,record.user_id,now+(body.remember===true?SESSION_MS:12*3600e3)).run();
   await db.prepare('DELETE FROM auth_attempts WHERE ip_hash=?').bind(ipHash).run();
-  return Response.json({ok:true,slot:record.slot,...(pages?{token}:{})},{headers:{...(!pages?{'Set-Cookie':sessionCookie(token)}:{}),'Cache-Control':'no-store'}});
+  return Response.json({ok:true,slot:record.slot,...(pages?{token,expiresAt:now+(body.remember===true?SESSION_MS:12*3600e3)}:{})},{headers:{...(!pages?{'Set-Cookie':body.remember===true?sessionCookie(token):sessionCookie(token).replace(/; Max-Age=\d+/, '')}:{}),'Cache-Control':'no-store'}});
 }catch(e){return fail(e)}}
 export async function DELETE(req:Request){try{
   requireSameOrigin(req);const raw=cookieToken(req.headers.get('cookie'))||(matchesPagesOrigin(req.headers.get('origin'),env.PAGES_ORIGIN)?bearerToken(req.headers.get('authorization')):null);
