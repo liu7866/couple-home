@@ -27,5 +27,5 @@ export async function snapshot(c: Awaited<ReturnType<typeof context>>) {
   if(!room)throw new HomeError('小屋正在准备，请重试。',503);
   const list=await c.db.prepare('SELECT slot, last_seen FROM members ORDER BY slot').all<{slot:number,last_seen:number}>();
   const photos=await c.db.prepare('SELECT id,caption,created_at FROM photos ORDER BY created_at').all<{id:string,caption:string,created_at:number}>();
-  return {state:{...publicState(JSON.parse(room.data),Date.now()),photos:photos.results.map(p=>({id:p.id,caption:p.caption,url:'/api/photos/'+p.id}))},revision:room.revision,updatedAt:room.updated_at,me:{slot:c.member.slot,canManagePasswords:c.canManagePasswords,loginMethod:c.loginMethod},members:list.results.map(m=>({slot:m.slot,online:Date.now()-m.last_seen<60000,joined:m.last_seen>0}))};
+  return {state:{...publicState(JSON.parse(room.data),Date.now(),c.member.slot),photos:photos.results.map(p=>({id:p.id,caption:p.caption,url:'/api/photos/'+p.id}))},revision:room.revision,updatedAt:room.updated_at,me:{slot:c.member.slot,canManagePasswords:c.canManagePasswords,loginMethod:c.loginMethod},members:list.results.map(m=>({slot:m.slot,online:Date.now()-m.last_seen<60000,joined:m.last_seen>0}))};
 }

@@ -133,3 +133,10 @@ test('one-time recovery works without ChatGPT, rotates codes, and revokes existi
  const archive=await(await get('/api/backup','alice')).json();assert.ok(!JSON.stringify(archive).includes(next));assert.ok(!JSON.stringify(archive).includes('code_hash'));
  const ownerReset=await mf.dispatchFetch(origin+'/api/passwords',{method:'POST',headers:ownerHeaders,body:JSON.stringify({slot:2,password:'Owner-reset-cottage#2026'})});assert.equal(ownerReset.status,200);assert.equal((await reset(next)).status,401);
 });
+
+test('daily answers persist in D1 but HTTP snapshots hide the other answer until both reply',async()=>{
+ const answer=await post('alice','daily.answer',{answer:'第一位的私密答案'});assert.equal(answer.status,200);const first=await answer.json(),day=first.state.dailyPrompt.day;
+ const login=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.105'},body:JSON.stringify({slot:2,password:'Owner-reset-cottage#2026'})});assert.equal(login.status,200);const cookie=login.headers.get('set-cookie').split(';')[0];
+ const hidden=await mf.dispatchFetch(origin+'/api/home',{headers:{Cookie:cookie}});const other=await hidden.json();assert.equal(other.state.daily[day].answers[1],undefined);assert.equal(other.state.daily[day].revealed,false);
+ const reply=await mf.dispatchFetch(origin+'/api/home',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({id:crypto.randomUUID(),kind:'daily.answer',payload:{answer:'第二位的答案'}})});assert.equal(reply.status,200);const together=await reply.json();assert.equal(together.state.daily[day].revealed,true);assert.equal(together.state.daily[day].answers[1].text,'第一位的私密答案');assert.equal(together.state.daily[day].answers[2].text,'第二位的答案');
+});

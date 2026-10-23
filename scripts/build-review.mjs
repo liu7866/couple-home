@@ -1,0 +1,20 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),fromDrizzle=createRequire(require.resolve('drizzle-kit'));
+const esbuild=fromDrizzle('esbuild');
+await esbuild.build({entryPoints:['lib/home-domain.mjs'],bundle:true,format:'iife',globalName:'ReviewDomain',platform:'browser',outfile:'outputs/review-domain.js'});
+const out=resolve('outputs/review');await mkdir(out,{recursive:true});
+let html=await readFile('app/home.html','utf8');
+const css=await readFile('public/style.css','utf8');
+const domain=await readFile('outputs/review-domain.js','utf8'),fixture=await readFile('scripts/review-fixture.js','utf8');
+let app=await readFile('public/app.js','utf8');
+const start=app.indexOf('function backendFetch('),end=app.indexOf('\nfunction photoSource',start);app=app.slice(0,start)+'function backendFetch(path,options={}){return reviewFetch(path,options)}'+app.slice(end);
+app=app.replace("location.href='/signout-with-chatgpt?return_to=%2F'","toast('演示预览不连接真实账号')");
+html=html.replace(/<link rel="stylesheet" href="\/style\.css[^"]*">/,'<style>'+css+'</style>');
+html=html.replace('<header>','<aside style="padding:14px 24px;background:#8b6a57;color:#fff9ed;font-size:13px;display:flex;gap:20px;justify-content:center;align-items:center;flex-wrap:wrap"><span>待发布预览 · 以下均为演示数据 · 刷新后重置，不影响线上小屋</span><button id="review-person" onclick="switchReviewPerson()" style="color:inherit;border:1px solid #ffffff77;border-radius:20px;padding:7px 14px">当前演示：小月 · 切换身份</button></aside><header>');
+html=html.replace(/<script src="\/app\.js[^"]*" defer><\/script><script src="\/features\.js[^"]*" defer><\/script>/,`<script>${domain}\n${fixture}\n${app}\n${await readFile('public/features.js','utf8')}</script>`);
+// A standalone preview has no external application assets or production endpoints.
+await writeFile(resolve(out,'couple-home-next-preview.html'),html);
+await writeFile(resolve(out,'index.html'),html);
+console.log(JSON.stringify({preview:resolve(out,'couple-home-next-preview.html')}));
