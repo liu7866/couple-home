@@ -46,13 +46,13 @@ test('two signed-in devices share changes, pet care and sealed letters',async()=
 
 test('private photo uploads round-trip through R2 and repeat imports deduplicate',async()=>{
  const jpeg=new Uint8Array([255,216,255,224,12,34,255,217]);
- const upload=async bytes=>{const f=new FormData();f.append('photo',new Blob([bytes],{type:'image/jpeg'}),'memory.jpg');f.append('caption','一起看海');f.append('merge','1');const encoded=new Request(origin+'/api/photos',{method:'POST',body:f});return mf.dispatchFetch(origin+'/api/photos',{method:'POST',headers:{...identity('alice'),Origin:origin,...Object.fromEntries(encoded.headers)},body:await encoded.arrayBuffer()})};
- const r=await upload(jpeg);assert.equal(r.status,200);const p=await r.json();
+ const upload=async (bytes,createdAt)=>{const f=new FormData();f.append('photo',new Blob([bytes],{type:'image/jpeg'}),'memory.jpg');f.append('caption','一起看海');f.append('merge','1');if(createdAt!==undefined)f.append('created_at',String(createdAt));const encoded=new Request(origin+'/api/photos',{method:'POST',body:f});return mf.dispatchFetch(origin+'/api/photos',{method:'POST',headers:{...identity('alice'),Origin:origin,...Object.fromEntries(encoded.headers)},body:await encoded.arrayBuffer()})};
+ assert.equal((await upload(new Uint8Array([255]))).status,400);assert.equal((await upload(jpeg,-1)).status,400);const originalDate=Date.UTC(2025,2,8);const r=await upload(jpeg,originalDate);assert.equal(r.status,200);const p=await r.json();
  const duplicate=await upload(jpeg);assert.equal(duplicate.status,200);const q=await duplicate.json();assert.equal(q.id,p.id);assert.equal(q.existed,true);
  const sameCaption=await upload(new Uint8Array([255,216,255,224,90,80,255,217]));assert.equal(sameCaption.status,200);assert.notEqual((await sameCaption.json()).id,p.id);
  const photo=await get('/api/photos/'+p.id,'bob');assert.equal(photo.status,200);assert.equal(photo.headers.get('content-type'),'image/jpeg');assert.deepEqual(new Uint8Array(await photo.arrayBuffer()),jpeg);
  assert.equal((await get('/api/photos/'+p.id)).status,401);
- const list=(await(await get('/api/home','bob')).json()).state.photos;assert.equal(list.length,2);assert.ok(list.every(photo=>Number.isFinite(photo.created_at)&&photo.created_at>0));const stored=await db.prepare('SELECT created_at FROM photos WHERE id=?').bind(p.id).first();assert.equal(list.find(photo=>photo.id===p.id).created_at,stored.created_at);
+ const list=(await(await get('/api/home','bob')).json()).state.photos;assert.equal(list.length,2);assert.ok(list.every(photo=>Number.isFinite(photo.created_at)&&photo.created_at>0));const stored=await db.prepare('SELECT created_at FROM photos WHERE id=?').bind(p.id).first();assert.equal(list.find(photo=>photo.id===p.id).created_at,stored.created_at);assert.equal(stored.created_at,originalDate);assert.equal((await upload(jpeg,originalDate+86400000)).status,200);assert.equal((await db.prepare('SELECT created_at FROM photos WHERE id=?').bind(p.id).first()).created_at,originalDate);
  const removed=await mf.dispatchFetch(origin+'/api/photos/'+p.id,{method:'DELETE',headers:{...auth('bob'),Origin:origin}});assert.equal(removed.status,200);
  assert.equal((await get('/api/photos/'+p.id,'alice')).status,404);
 });
@@ -140,3 +140,5 @@ test('daily answers persist in D1 but HTTP snapshots hide the other answer until
  const hidden=await mf.dispatchFetch(origin+'/api/home',{headers:{Cookie:cookie}});const other=await hidden.json();assert.equal(other.state.daily[day].answers[1],undefined);assert.equal(other.state.daily[day].revealed,false);
  const reply=await mf.dispatchFetch(origin+'/api/home',{method:'POST',headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({id:crypto.randomUUID(),kind:'daily.answer',payload:{answer:'第二位的答案'}})});assert.equal(reply.status,200);const together=await reply.json();assert.equal(together.state.daily[day].revealed,true);assert.equal(together.state.daily[day].answers[1].text,'第一位的私密答案');assert.equal(together.state.daily[day].answers[2].text,'第二位的答案');
 });
+
+ test('malformed owner restore requests fail as client input without changing the room',async()=>{const before=await(await get('/api/home','alice')).json();for(const body of ['{','null','{}']){const result=await mf.dispatchFetch(origin+'/api/restore',{method:'POST',headers:{...identity('alice'),Origin:origin,'Content-Type':'application/json'},body});assert.equal(result.status,400)}const after=await(await get('/api/home','alice')).json();assert.equal(after.revision,before.revision)});

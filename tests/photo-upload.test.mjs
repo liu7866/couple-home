@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+const source=await readFile('public/app.js','utf8'),code=source.slice(source.indexOf('async function uploadPhoto('),source.indexOf('function addPhoto('));
+function fixture(status=200){let payload=null,expired=null,requests=0;const headers={};class XHR{constructor(){this.upload={}}open(){}setRequestHeader(k,v){headers[k]=v}send(body){payload=body;requests++;this.status=status;this.responseText=JSON.stringify(status===200?{id:'restored-photo'}:{error:'登录已过期'});queueMicrotask(()=>this.onload())}}const context=vm.createContext({FormData,XMLHttpRequest:XHR,API_ORIGIN:'https://test.invalid',PAGES_MODE:true,pagesToken:'test-session',showLogin:message=>expired=message});vm.runInContext(code,context);return{run:date=>context.uploadPhoto(new Blob([new Uint8Array([255,216,255])],{type:'image/jpeg'}),'旧日回忆',true,()=>{},date),get payload(){return payload},get expired(){return expired},get requests(){return requests}}}
+test('backup photo uploads preserve the original date and retain retry deduplication',async()=>{const f=fixture(),date=Date.UTC(2025,2,8);await f.run(date);assert.equal(f.payload.get('created_at'),String(date));assert.equal(f.payload.get('merge'),'1');assert.equal(f.payload.get('caption'),'旧日回忆');assert.equal(f.requests,1)});
+test('upload authorization failure returns to the login gate instead of leaving private forms open',async()=>{const f=fixture(401);await assert.rejects(()=>f.run(),error=>error.status===401);assert.equal(f.expired,'登录已过期');assert.equal(f.requests,1)});

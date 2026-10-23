@@ -37,3 +37,5 @@ test('same pet action retried by a disconnected device cannot award XP twice',as
  const row=await db.prepare('SELECT data FROM room_state WHERE id=1').first(),pet=JSON.parse(row.data).pet;
  assert.equal(pet.xp,10);assert.equal(pet.careLog.length,1);
 });
+
+ test('returning members refresh without redundant room initialization writes',async()=>{const statements=[];const observed={prepare(sql){statements.push(sql);return db.prepare(sql)}};const member=await ensureMember(observed,{userId:'alice',displayName:'A'},now+1000);assert.ok([1,2].includes(member.slot));assert.equal(statements.some(sql=>/^(INSERT|UPDATE|DELETE)/.test(sql)),false);});
