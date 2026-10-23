@@ -154,3 +154,13 @@ $('#forgot-password').onclick=()=>{
  modal('用个人恢复码找回密码');form('<p class="form-help">需要提前保存的个人恢复码，无需 GPT 账号。未保存恢复码时，请老大用原账号重设密码。</p><label class="form-field">你的身份<select name="slot"><option value="1">男朋友</option><option value="2">女朋友</option></select></label>'+field('个人恢复码','code','text','','required minlength="64" maxlength="64" autocomplete="off" autocapitalize="none" spellcheck="false"')+field('新的登录密码','password','password','','required minlength="12" maxlength="128" autocomplete="new-password"')+field('再输入一次','confirmation','password','','required minlength="12" maxlength="128" autocomplete="new-password"'),async d=>{if(d.get('password')!==d.get('confirmation'))throw new Error('两次密码不一致。');const result=await api('/api/recovery',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot:Number(d.get('slot')),code:d.get('code'),password:d.get('password')})});forgetDevice();close();recoveryResult(result.code,'密码已重设，请保存更新后的恢复码')});$('#active-form button[type="submit"]').textContent='重设密码并更新恢复码';
 };
 $('#migrate-local').onclick=()=>importConfirm(legacy,true);$('#sync-refresh').onclick=sync;document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});window.addEventListener('online',sync);window.addEventListener('offline',()=>{status('等待网络',true);connection('网络暂时断开。连上后会自动取回云端回忆。')});render();sync();setInterval(()=>{if(!document.hidden)sync()},12000);
+// Decorative only: preserve native clicks, form submission and keyboard activation.
+document.addEventListener('click',event=>{
+ const target=event.target instanceof Element?event.target.closest('button,a.primary,a.outline,.shortcut-links a,header nav a,.room-location a'):null;
+ if(!target||target.matches(':disabled,[aria-disabled="true"]')||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const rect=target.getBoundingClientRect();if(!rect.width||!rect.height)return;
+ target.classList.add('tap-surface');target.querySelectorAll(':scope > .tap-ripple').forEach(wave=>wave.remove());
+ const wave=document.createElement('span'),size=Math.min(420,Math.max(rect.width,rect.height)*1.8);wave.className='tap-ripple';wave.setAttribute('aria-hidden','true');
+ wave.style.width=wave.style.height=size+'px';wave.style.left=(event.detail?Math.max(0,Math.min(rect.width,event.clientX-rect.left)):rect.width/2)+'px';wave.style.top=(event.detail?Math.max(0,Math.min(rect.height,event.clientY-rect.top)):rect.height/2)+'px';
+ target.append(wave);setTimeout(()=>{wave.remove();if(!target.querySelector(':scope > .tap-ripple'))target.classList.remove('tap-surface')},700);
+},{capture:true,passive:true});
