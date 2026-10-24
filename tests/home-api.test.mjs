@@ -9,7 +9,7 @@ const files=await readdir(resolve('dist/server'),{recursive:true});
 const modules=['index.js',...files.filter(f=>f!=='index.js'&&/\.m?js$/.test(f))].map(path=>({type:'ESModule',path:resolve('dist/server',path)}));
 const mf=new Miniflare({
   modules,modulesRoot:resolve('dist/server'),
-  compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['BUCKET'],bindings:{OWNER_LOGIN_EMAIL:'alice@example.test',PAGES_ORIGIN:'https://liu7866.github.io'},
+  compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['BUCKET'],bindings:{OWNER_LOGIN_EMAIL:'alice@example.test',PAGES_ORIGIN:'https://your-account.github.io'},
 });
 const db=await mf.getD1Database('DB');
 for(const file of (await readdir(resolve('drizzle'))).filter(x=>x.endsWith('.sql')).sort()){
@@ -89,7 +89,7 @@ test('anonymous visitors receive a password page and cannot fetch shared data',a
 
 
 test('GitHub Pages login, photos and writes use a restricted bearer session',async()=>{
- const pages='https://liu7866.github.io';
+ const pages='https://your-account.github.io';
  const preflight=await mf.dispatchFetch(origin+'/api/home',{method:'OPTIONS',headers:{Origin:pages,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'}});assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),pages);assert.ok(preflight.headers.get('access-control-allow-headers').includes('Authorization'));
  const denied=await mf.dispatchFetch(origin+'/api/home',{method:'OPTIONS',headers:{Origin:'https://other.example','Access-Control-Request-Method':'POST'}});assert.equal(denied.status,403);assert.equal(denied.headers.get('access-control-allow-origin'),null);
  const login=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:pages,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.99'},body:JSON.stringify({slot:2,password:'New-cottage#2026'})});assert.equal(login.status,200);assert.equal(login.headers.get('access-control-allow-origin'),pages);assert.equal(login.headers.get('set-cookie'),null);const token=(await login.json()).token;assert.match(token,/^[a-f0-9]{64}$/);
@@ -112,7 +112,7 @@ test('complete archive is owner-only and preserves sealed letters and full pet w
 });
 
 test('remember-device is opt-in, bounded to 30 days and logout revokes the token',async()=>{
- const pages='https://liu7866.github.io',request={method:'POST',headers:{Origin:pages,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.101'},body:JSON.stringify({slot:2,password:'New-cottage#2026',remember:true})};
+ const pages='https://your-account.github.io',request={method:'POST',headers:{Origin:pages,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.101'},body:JSON.stringify({slot:2,password:'New-cottage#2026',remember:true})};
  const response=await mf.dispatchFetch(origin+'/api/auth',request);assert.equal(response.status,200);const data=await response.json();assert.ok(data.expiresAt>Date.now()+29*86400000&&data.expiresAt<=Date.now()+30*86400000);const headers={Origin:pages,Authorization:'Bearer '+data.token};assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers})).status,200);await mf.dispatchFetch(origin+'/api/auth',{method:'DELETE',headers});assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers})).status,401);
 });
 test('owner preview restoration replaces pet and moods, preserves photos, and rejects stale revision',async()=>{
@@ -126,8 +126,8 @@ test('one-time recovery works without ChatGPT, rotates codes, and revokes existi
  const denied=await mf.dispatchFetch(origin+'/api/recovery',{method:'POST',headers:{...identity('bob'),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({slot:2})});assert.equal(denied.status,403);
  const create=await mf.dispatchFetch(origin+'/api/recovery',{method:'POST',headers:ownerHeaders,body:JSON.stringify({slot:2})});assert.equal(create.status,200);const code=(await create.json()).code;assert.match(code,/^[a-f0-9]{64}$/);
  const login=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.102'},body:JSON.stringify({slot:2,password:'New-cottage#2026',remember:true})});assert.equal(login.status,200);const oldCookie=login.headers.get('set-cookie').split(';')[0];
- const preflight=await mf.dispatchFetch(origin+'/api/recovery',{method:'OPTIONS',headers:{Origin:'https://liu7866.github.io','Access-Control-Request-Method':'PUT','Access-Control-Request-Headers':'content-type'}});assert.equal(preflight.status,204);assert.ok(preflight.headers.get('access-control-allow-methods').includes('PUT'));
- const reset=codeValue=>mf.dispatchFetch(origin+'/api/recovery',{method:'PUT',headers:{Origin:'https://liu7866.github.io','Content-Type':'application/json','cf-connecting-ip':'203.0.113.103'},body:JSON.stringify({slot:2,code:codeValue,password:'Recovered-cottage#2026'})});
+ const preflight=await mf.dispatchFetch(origin+'/api/recovery',{method:'OPTIONS',headers:{Origin:'https://your-account.github.io','Access-Control-Request-Method':'PUT','Access-Control-Request-Headers':'content-type'}});assert.equal(preflight.status,204);assert.ok(preflight.headers.get('access-control-allow-methods').includes('PUT'));
+ const reset=codeValue=>mf.dispatchFetch(origin+'/api/recovery',{method:'PUT',headers:{Origin:'https://your-account.github.io','Content-Type':'application/json','cf-connecting-ip':'203.0.113.103'},body:JSON.stringify({slot:2,code:codeValue,password:'Recovered-cottage#2026'})});
  const response=await reset(code);assert.equal(response.status,200);const next=(await response.json()).code;assert.notEqual(next,code);assert.equal((await reset(code)).status,401);assert.equal((await mf.dispatchFetch(origin+'/api/home',{headers:{Cookie:oldCookie}})).status,401);
  const newLogin=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.104'},body:JSON.stringify({slot:2,password:'Recovered-cottage#2026'})});assert.equal(newLogin.status,200);assert.ok(!newLogin.headers.get('set-cookie').includes('Max-Age'));
  const archive=await(await get('/api/backup','alice')).json();assert.ok(!JSON.stringify(archive).includes(next));assert.ok(!JSON.stringify(archive).includes('code_hash'));
@@ -142,3 +142,17 @@ test('daily answers persist in D1 but HTTP snapshots hide the other answer until
 });
 
  test('malformed owner restore requests fail as client input without changing the room',async()=>{const before=await(await get('/api/home','alice')).json();for(const body of ['{','null','{}']){const result=await mf.dispatchFetch(origin+'/api/restore',{method:'POST',headers:{...identity('alice'),Origin:origin,'Content-Type':'application/json'},body});assert.equal(result.status,400)}const after=await(await get('/api/home','alice')).json();assert.equal(after.revision,before.revision)});
+
+
+test('conditional polling omits unchanged content, requires authentication, and notices writes',async()=>{
+ let view=await (await get('/api/home','alice')).json();assert.match(view.syncTag,/^[a-f0-9]{64}$/);
+ let response=await get('/api/home?since='+view.syncTag,'alice');let data=await response.json();
+ // A minute boundary intentionally refreshes time-dependent content.
+ if(!data.unchanged){view=data;data=await(await get('/api/home?since='+view.syncTag,'alice')).json()}
+ assert.equal(data.unchanged,true);assert.equal('state'in data,false);assert.equal(data.me.slot,1);assert.ok(Array.isArray(data.members));
+ assert.equal((await get('/api/home?since='+view.syncTag)).status,401);
+ const login=await mf.dispatchFetch(origin+'/api/auth',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.106'},body:JSON.stringify({slot:2,password:'Owner-reset-cottage#2026'})});assert.equal(login.status,200);cookies.set('bob',login.headers.get('set-cookie').split(';')[0]);
+ const bob=await(await get('/api/home?since='+view.syncTag,'bob')).json();assert.ok(bob.state);assert.notEqual(bob.syncTag,view.syncTag);
+ const saved=await post('alice','wish.add',{id:crypto.randomUUID(),text:'新的期待'});assert.equal(saved.status,200);
+ const changed=await(await get('/api/home?since='+view.syncTag,'alice')).json();assert.ok(changed.state.wishes.some(w=>w.text==='新的期待'));assert.notEqual(changed.syncTag,view.syncTag);
+});

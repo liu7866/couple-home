@@ -5,9 +5,9 @@ import vm from 'node:vm';
 const source=await readFile('public/app.js','utf8');
 const code=source.slice(source.indexOf('let photoLoadRunning='),source.indexOf('// Keep stable photo'));
 function fixture(count=8){
- const images=Array.from({length:count},(_,i)=>({dataset:{photoId:'photo-'+i},visible:false,getClientRects(){return this.visible?[{}]:[]}}));
+ const images=Array.from({length:count},(_,i)=>({dataset:{photoId:'photo-'+i},visible:false,top:0,getClientRects(){return this.visible?[{}]:[]}}));
  const requests=[],pending=[],revoked=[];let active=0,maxActive=0;
- const context=vm.createContext({PAGES_MODE:true,pagesToken:'test-session',ready:true,state:{photos:images.map(i=>({id:i.dataset.photoId}))},photoCache:new Map(),document:{body:{dataset:{roomPage:'home'}},querySelectorAll:()=>images},AbortSignal,queueMicrotask,URL:{createObjectURL:()=> 'blob:test-'+revoked.length+'-'+Math.random(),revokeObjectURL:url=>revoked.push(url)},backendFetch:path=>{requests.push(path);active++;maxActive=Math.max(maxActive,active);return new Promise(resolve=>pending.push(()=>{active--;resolve(new Response(new Uint8Array([255,216,255]),{headers:{'content-type':'image/jpeg'}}))}))}});
+ const context=vm.createContext({window:{innerHeight:800},photoNearViewport:(img,height)=>img.visible&&img.top<=height+240,PAGES_MODE:true,pagesToken:'test-session',ready:true,state:{photos:images.map(i=>({id:i.dataset.photoId}))},photoCache:new Map(),document:{body:{dataset:{roomPage:'home'}},querySelectorAll:()=>images},AbortSignal,queueMicrotask,URL:{createObjectURL:()=> 'blob:test-'+revoked.length+'-'+Math.random(),revokeObjectURL:url=>revoked.push(url)},backendFetch:path=>{requests.push(path);active++;maxActive=Math.max(maxActive,active);return new Promise(resolve=>pending.push(()=>{active--;resolve(new Response(new Uint8Array([255,216,255]),{headers:{'content-type':'image/jpeg'}}))}))}});
  vm.runInContext(code,context);
  return{context,images,requests,pending,revoked,get maxActive(){return maxActive},run:()=>context.loadPagesPhotos()};
 }

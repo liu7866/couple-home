@@ -3,6 +3,7 @@ import { homeIdentity } from './home-auth';
 import { publicState, HomeError } from './home-domain.mjs';
 import { ensureMember } from './home-repository.mjs';
 import { matchesPagesOrigin } from './pages-origin';
+import { homeSyncTag } from './home-sync-tag.mjs';
 
 export function json(data: unknown, status=200) { return Response.json(data, {status,headers:{'Cache-Control':'no-store','Vary':'Cookie'}}); }
 export function fail(e: unknown) {
@@ -29,5 +30,5 @@ export async function snapshot(c: Awaited<ReturnType<typeof context>>) {
     c.db.prepare('SELECT id,caption,created_at FROM photos ORDER BY created_at').all<{id:string,caption:string,created_at:number}>(),
   ]);
   if(!room)throw new HomeError('小屋正在准备，请重试。',503);
-  return {state:{...publicState(JSON.parse(room.data),Date.now(),c.member.slot),photos:photos.results.map(p=>({id:p.id,caption:p.caption,created_at:p.created_at,url:'/api/photos/'+p.id}))},revision:room.revision,updatedAt:room.updated_at,me:{slot:c.member.slot,canManagePasswords:c.canManagePasswords,loginMethod:c.loginMethod},members:list.results.map(m=>({slot:m.slot,online:Date.now()-m.last_seen<60000,joined:m.last_seen>0}))};
+  return {syncTag:await homeSyncTag(room.revision,photos.results,[c.member.slot,c.canManagePasswords,c.loginMethod]),state:{...publicState(JSON.parse(room.data),Date.now(),c.member.slot),photos:photos.results.map(p=>({id:p.id,caption:p.caption,created_at:p.created_at,url:'/api/photos/'+p.id}))},revision:room.revision,updatedAt:room.updated_at,me:{slot:c.member.slot,canManagePasswords:c.canManagePasswords,loginMethod:c.loginMethod},members:list.results.map(m=>({slot:m.slot,online:Date.now()-m.last_seen<60000,joined:m.last_seen>0}))};
 }

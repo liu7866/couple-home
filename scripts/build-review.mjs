@@ -14,6 +14,7 @@ app=app.replace("location.href='/signout-with-chatgpt?return_to=%2F'","toast('�
 html=html.replace(/<link rel="stylesheet" href="\/style\.css[^"]*">/,'<style>'+css+'</style>');
 html=html.replace('<header>','<aside style="padding:14px 24px;background:#8b6a57;color:#fff9ed;font-size:13px;display:flex;gap:20px;justify-content:center;align-items:center;flex-wrap:wrap"><span>待发布预览 · 以下均为演示数据 · 刷新后重置，不影响线上小屋</span><button id="review-person" onclick="switchReviewPerson()" style="color:inherit;border:1px solid #ffffff77;border-radius:20px;padding:7px 14px">当前演示：小月 · 切换身份</button></aside><header>');
 html=html.replace(/<script src="\/app\.js[^"]*" defer><\/script><script src="\/features\.js[^"]*" defer><\/script>/,`<script>${domain}\n${fixture}\n${app}\n${await readFile('public/features.js','utf8')}</script>`);
+html=html.replace(/<script src="\/room-helpers\.js[^"]*" defer><\/script>/,`<script>${await readFile('public/room-helpers.js','utf8')}</script>`);
 // A standalone preview has no external application assets or production endpoints.
 await writeFile(resolve(out,'couple-home-next-preview.html'),html);
 await writeFile(resolve(out,'index.html'),html);

@@ -2,7 +2,11 @@ import { context, snapshot, json, fail, requireSameOrigin } from '../../../lib/h
 import { HomeError } from '../../../lib/home-domain.mjs';
 import { applyStoredOperation } from '../../../lib/home-repository.mjs';
 export const dynamic='force-dynamic';
-export async function GET(){try{return json(await snapshot(await context()))}catch(e){return fail(e)}}
+export async function GET(req:Request){try{
+  const view=await snapshot(await context());
+  if(new URL(req.url).searchParams.get('since')===view.syncTag){const {state,...meta}=view;return json({...meta,unchanged:true})}
+  return json(view);
+}catch(e){return fail(e)}}
 export async function POST(req:Request){
   try{
     requireSameOrigin(req);const c=await context();
