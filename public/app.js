@@ -156,7 +156,7 @@ $('#forgot-password').onclick=()=>{
 $('#migrate-local').onclick=()=>importConfirm(legacy,true);$('#sync-refresh').onclick=sync;document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});window.addEventListener('online',sync);window.addEventListener('offline',()=>{status('等待网络',true);connection('网络暂时断开。连上后会自动取回云端回忆。')});render();sync();setInterval(()=>{if(!document.hidden)sync()},12000);
 // Decorative only: preserve native clicks, form submission and keyboard activation.
 document.addEventListener('click',event=>{
- const target=event.target instanceof Element?event.target.closest('button,a.primary,a.outline,.shortcut-links a,header nav a,.room-location a'):null;
+ const target=event.target instanceof Element?event.target.closest('button,a.primary,a.outline,.shortcut-links a,header nav a,.room-location a,.mobile-dock a,.room-menu a'):null;
  if(!target||target.matches(':disabled,[aria-disabled="true"]')||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
  const rect=target.getBoundingClientRect();if(!rect.width||!rect.height)return;
  target.classList.add('tap-surface');target.querySelectorAll(':scope > .tap-ripple').forEach(wave=>wave.remove());
