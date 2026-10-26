@@ -135,6 +135,8 @@ export function createApplication({ root, dataDir, origin, trustProxy = false, s
 
     async function send(response) {
       const headers = Object.fromEntries(response.headers);
+      const cookies = response.headers.getSetCookie();
+      if (cookies.length) headers['set-cookie'] = cookies;
       if (response.status === 413) headers.Connection = 'close';
       Object.assign(headers, {
         'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',

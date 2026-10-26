@@ -24,10 +24,10 @@ test('standalone server works with no Cloudflare or ChatGPT identity', async t =
   let app, origin;
   async function start(directory = dataDir) {
     app = createApplication({ root, dataDir: directory, origin: 'http://127.0.0.1:0' });
-    app.server.listen(0, '127.0.0.1'); await once(app.server, 'listening');
+    app.server.listen(origin ? Number(new URL(origin).port) : 0, '127.0.0.1'); await once(app.server, 'listening');
     origin = `http://127.0.0.1:${app.server.address().port}`; app.env.APP_ORIGIN = origin;
   }
-  const call = (path, options = {}) => fetch(origin + path, options);
+  const call = (path, options = {}) => fetch(origin + path, { ...options, headers: { ...options.headers, Connection: 'close' } });
   const post = (path, body, cookie, method = 'POST', extra = {}) => call(path, { method,
     headers: { Origin: origin, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...extra },
     body: JSON.stringify(body) });
@@ -231,6 +231,84 @@ test('standalone server works with no Cloudflare or ChatGPT identity', async t =
     assert.equal((await get('/api/home', ownerCookie)).status, 401); ownerCookie = await login(1, password);
     assert.equal((await (await get('/api/home', ownerCookie)).json()).state.stories[0].title, '第一次散步');
   });
+
+  await t.test('HTTP logout transmits separate scoped and legacy cookie deletions', async () => {
+    const response = await call('/api/auth', { method: 'DELETE', headers: { Origin: origin, Cookie: ownerCookie } });
+    assert.equal(response.status, 200);
+    const cookies = response.headers.getSetCookie();
+    assert.deepEqual(cookies.map(cookie => cookie.split('=')[0]), [`little_days_local_${new URL(origin).port}`, 'little_days_local']);
+    for (const cookie of cookies) assert.match(cookie, /; Max-Age=0$/);
+    assert.equal((await get('/api/home', ownerCookie)).status, 401);
+  });
+});
+
+test('local cookie isolation and legacy session compatibility', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'little-days-cookies-'));
+  const apps = [41001, 41002].map(port => createApplication({ root,
+    dataDir: resolve(directory, String(port)), origin: `http://127.0.0.1:${port}` }));
+  t.after(async () => { for (const app of apps) await app.close(); await rm(directory, { recursive: true, force: true }); });
+  const call = (app, path, { method = 'GET', body, cookie } = {}) => app.dispatch(new Request(app.env.APP_ORIGIN + path, {
+    method, headers: { Origin: app.env.APP_ORIGIN, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  }));
+  const login = async app => {
+    const response = await call(app, '/api/auth', { method: 'POST', body: { slot: 1, password: ownerPassword } });
+    assert.equal(response.status, 200);
+    return response;
+  };
+  // Browsers share host/path cookies across ports, so this jar deliberately has no port key.
+  const acceptCookies = (jar, response) => {
+    for (const cookie of response.headers.getSetCookie()) {
+      const [pair, ...attributes] = cookie.split(';').map(value => value.trim()), name = pair.slice(0, pair.indexOf('='));
+      if (attributes.some(value => /^Max-Age=0$/i.test(value))) jar.delete(name); else jar.set(name, pair);
+    }
+  };
+  const header = jar => [...jar.values()].join('; ');
+  const pair = response => response.headers.getSetCookie()[0].split(';')[0];
+  const legacy = cookie => 'little_days_local=' + cookie.slice(cookie.indexOf('=') + 1);
+  for (const app of apps) {
+    const response = await call(app, '/api/setup', { method: 'POST', body: {
+      passwords: [ownerPassword, partnerPassword], confirmations: [ownerPassword, partnerPassword],
+    } });
+    assert.equal(response.status, 200);
+  }
+
+  await t.test('logging into a second HTTP port preserves both homes in one browser jar', async () => {
+    const jar = new Map();
+    acceptCookies(jar, await login(apps[0]));
+    assert.equal((await call(apps[0], '/api/home', { cookie: header(jar) })).status, 200);
+    acceptCookies(jar, await login(apps[1]));
+    assert.equal((await call(apps[0], '/api/home', { cookie: header(jar) })).status, 200, 'the second port must not replace the first session');
+    assert.equal((await call(apps[1], '/api/home', { cookie: header(jar) })).status, 200);
+    assert.equal(jar.size, 2);
+  });
+
+  await t.test('an existing unscoped local cookie remains valid', async () => {
+    const cookie = legacy(pair(await login(apps[0])));
+    assert.equal((await call(apps[0], '/api/home', { cookie })).status, 200);
+  });
+
+  await t.test('logout revokes and clears both scoped and legacy sessions', async () => {
+    const oldCookie = legacy(pair(await login(apps[0]))), newResponse = await login(apps[0]), newCookie = pair(newResponse);
+    const jar = new Map([['little_days_local', oldCookie]]); acceptCookies(jar, newResponse);
+    assert.equal((await call(apps[0], '/api/home', { cookie: oldCookie })).status, 200);
+    assert.equal((await call(apps[0], '/api/home', { cookie: newCookie })).status, 200);
+    const response = await call(apps[0], '/api/auth', { method: 'DELETE', cookie: `${newCookie}; ${oldCookie}` });
+    assert.equal(response.status, 200); acceptCookies(jar, response);
+    assert.equal((await call(apps[0], '/api/home', { cookie: oldCookie })).status, 401, 'the old session must not reappear after logout');
+    assert.equal((await call(apps[0], '/api/home', { cookie: newCookie })).status, 401);
+    assert.equal(jar.size, 0, 'logout must clear both cookie names');
+  });
+
+  await t.test('HTTPS retains its host-only Secure cookie', async () => {
+    const app = createApplication({ root, dataDir: resolve(directory, '41001'), origin: 'https://home.example' }); apps.push(app);
+    const response = await login(app), cookie = response.headers.getSetCookie()[0];
+    assert.ok(cookie.startsWith('__Host-little_days='), 'HTTPS cookie name must remain compatible');
+    assert.ok(/; Secure(?:;|$)/.test(cookie), 'HTTPS cookie must be Secure');
+    assert.ok(/; HttpOnly(?:;|$)/.test(cookie), 'HTTPS cookie must be HttpOnly');
+    assert.ok(/; Path=\/(?:;|$)/.test(cookie) && !/; Domain=/i.test(cookie), 'HTTPS cookie must remain host-only at the root path');
+    assert.equal((await call(app, '/api/home', { cookie: pair(response) })).status, 200);
+  });
 });
 
 test('native password records remain compatible with existing PBKDF2 Unicode hashes', async () => {
@@ -247,12 +325,12 @@ test('first-run password setup and administrator-owned identity names', async t 
   const password1 = 'Owner6', password2 = 'Mate66';
   async function start(options = {}) {
     app = createApplication({ root, dataDir: resolve(directory, options.folder || 'data'), origin: options.origin || 'http://127.0.0.1:0', setupCode: options.setupCode });
-    app.server.listen(0, '127.0.0.1'); await once(app.server, 'listening');
+    app.server.listen(wire ? Number(new URL(wire).port) : 0, '127.0.0.1'); await once(app.server, 'listening');
     wire = `http://127.0.0.1:${app.server.address().port}`;
     origin = options.origin || wire; app.env.APP_ORIGIN = origin;
   }
   const call = (path, { method = 'GET', body, cookie, source = origin } = {}) => {
-    const headers = { Host: new URL(origin).host, Origin: source, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) };
+    const headers = { Host: new URL(origin).host, Origin: source, Connection: 'close', 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) };
     const text = body !== undefined ? JSON.stringify(body) : undefined;
     if (!origin.startsWith('https:')) return fetch(wire + path, { method, headers, ...(text !== undefined ? { body: text } : {}) });
     // Simulate Nginx TLS termination with an explicit original Host header.

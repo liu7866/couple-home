@@ -15,6 +15,7 @@ export async function nativeOwner(){
 }
 export async function requireNativeOwner(){const owner=await nativeOwner();if(!owner)throw new HomeError('请管理员使用原来的 ChatGPT 账号登录后设置密码。',403);return owner}
 export function cookieToken(cookie:string|null){const value=cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith(SESSION_COOKIE+'='))?.slice(SESSION_COOKIE.length+1);return value&&/^[a-f0-9]{64}$/.test(value)?value:null}
+export function cookieTokens(cookie:string|null){const token=cookieToken(cookie);return token?[token]:[]}
 export async function homeIdentity(){
   const owner=await nativeOwner();
   if(owner)return{user:owner,nativeOwner:true,loginMethod:'chatgpt'};
@@ -25,3 +26,4 @@ export async function homeIdentity(){
   return{user:{userId:session.user_id,displayName:session.display_name},nativeOwner:false,loginMethod:'password'};
 }
 export function sessionCookie(token:string,maxAge=SESSION_MS/1000){return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`}
+export function clearSessionCookies(){return [sessionCookie('',0)]}

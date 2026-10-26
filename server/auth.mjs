@@ -5,15 +5,23 @@ import { HomeError } from '../lib/home-domain.mjs';
 export const SESSION_MS = 30 * 86400000;
 export const randomToken = () => randomBytes(32).toString('hex');
 export const hashToken = async value => createHash('sha256').update(value).digest('hex');
-function cookieName() { return currentRequest().env.APP_ORIGIN.startsWith('https:') ? '__Host-little_days' : 'little_days_local'; }
-export function cookieToken(cookie) {
-  const name = cookieName();
-  const value = cookie?.split(';').map(x => x.trim()).find(x => x.startsWith(name + '='))?.slice(name.length + 1);
-  return value && /^[a-f0-9]{64}$/.test(value) ? value : null;
+function cookieNames() {
+  const origin = new URL(currentRequest().env.APP_ORIGIN);
+  return origin.protocol === 'https:' ? ['__Host-little_days'] : [`little_days_local_${origin.port || '80'}`, 'little_days_local'];
 }
-export function sessionCookie(token, maxAge = SESSION_MS / 1000) {
+export function cookieTokens(cookie) {
+  const fields = cookie?.split(';').map(x => x.trim()) || [];
+  return [...new Set(cookieNames().map(name => fields.find(x => x.startsWith(name + '='))?.slice(name.length + 1))
+    .filter(value => value && /^[a-f0-9]{64}$/.test(value)))];
+}
+export function cookieToken(cookie) { return cookieTokens(cookie)[0] || null; }
+function formatCookie(name, token, maxAge) {
   const secure = currentRequest().env.APP_ORIGIN.startsWith('https:');
-  return `${cookieName()}=${token}; Path=/; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Strict; Max-Age=${maxAge}`;
+  return `${name}=${token}; Path=/; HttpOnly; ${secure ? 'Secure; ' : ''}SameSite=Strict; Max-Age=${maxAge}`;
+}
+export function clearSessionCookies() { return cookieNames().map(name => formatCookie(name, '', 0)); }
+export function sessionCookie(token, maxAge = SESSION_MS / 1000) {
+  return formatCookie(cookieNames()[0], token, maxAge);
 }
 export async function homeIdentity() {
   const { request, env } = currentRequest();

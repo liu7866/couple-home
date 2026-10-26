@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { json, fail, requireSameOrigin, parseObject } from '../../../lib/home-server';
-import { hashToken, randomToken, sessionCookie, cookieToken, SESSION_MS } from '../../../lib/home-auth';
+import { hashToken, randomToken, sessionCookie, cookieTokens, clearSessionCookies, SESSION_MS } from '../../../lib/home-auth';
 import { HomeError } from '../../../lib/home-domain.mjs';
 import { verifyPassword } from '../../../lib/password.mjs';
 import { matchesPagesOrigin, bearerToken } from '../../../lib/pages-origin';
@@ -23,7 +23,10 @@ export async function POST(req:Request){try{
   return Response.json({ok:true,slot:record.slot,...(pages?{token,expiresAt:now+(body.remember===true?SESSION_MS:12*3600e3)}:{})},{headers:{...(!pages?{'Set-Cookie':body.remember===true?sessionCookie(token):sessionCookie(token).replace(/; Max-Age=\d+/, '')}:{}),'Cache-Control':'no-store'}});
 }catch(e){return fail(e)}}
 export async function DELETE(req:Request){try{
-  requireSameOrigin(req);const raw=cookieToken(req.headers.get('cookie'))||(matchesPagesOrigin(req.headers.get('origin'),env.PAGES_ORIGIN)?bearerToken(req.headers.get('authorization')):null);
-  if(raw&&env.DB)await env.DB.prepare('DELETE FROM home_sessions WHERE token_hash=?').bind(await hashToken(raw)).run();
-  return Response.json({ok:true},{headers:{'Set-Cookie':sessionCookie('',0),'Cache-Control':'no-store'}});
+  requireSameOrigin(req);const tokens=cookieTokens(req.headers.get('cookie'));
+  const bearer=matchesPagesOrigin(req.headers.get('origin'),env.PAGES_ORIGIN)?bearerToken(req.headers.get('authorization')):null;
+  if(!tokens.length&&bearer)tokens.push(bearer);
+  if(env.DB)for(const raw of tokens)await env.DB.prepare('DELETE FROM home_sessions WHERE token_hash=?').bind(await hashToken(raw)).run();
+  const headers=new Headers({'Cache-Control':'no-store'});for(const cookie of clearSessionCookies())headers.append('Set-Cookie',cookie);
+  return Response.json({ok:true},{headers});
 }catch(e){return fail(e)}}
