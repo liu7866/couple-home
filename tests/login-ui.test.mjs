@@ -7,7 +7,7 @@ const code=source.slice(source.indexOf('function showLogin('),source.indexOf('fu
 for(const pagesMode of [false,true])test(`expired ${pagesMode?'Pages':'same-origin'} session dismisses protected dialogs and revokes cached photo URLs`,()=>{
  const dialog={open:true,dataset:{busy:'1'},close(){this.open=false}},gate={hidden:true},note={},classes=new Set(),revoked=[];
  const cache=new Map([['photo1',{url:'blob:private-photo'}],['photo2',{url:''}]]);let forgotten=0;
- const context=vm.createContext({ready:true,PAGES_MODE:pagesMode,photoCache:cache,forgetDevice(){forgotten++},URL:{revokeObjectURL:url=>revoked.push(url)},document:{body:{classList:{add:name=>classes.add(name)}}},$:selector=>({'#modal':dialog,'#login-gate':gate,'#login-note':note})[selector]});
+ const context=vm.createContext({ready:true,PAGES_MODE:pagesMode,photoCache:cache,photoFailures:new Map(),forgetDevice(){forgotten++},URL:{revokeObjectURL:url=>revoked.push(url)},document:{body:{classList:{add:name=>classes.add(name)}}},$:selector=>({'#modal':dialog,'#login-gate':gate,'#login-note':note})[selector]});
  vm.runInContext(code,context);context.showLogin('登录已过期，请重新回家。');
  assert.equal(dialog.open,false);assert.equal(dialog.dataset.busy,'0');assert.equal(gate.hidden,false);assert.equal(note.textContent,'登录已过期，请重新回家。');assert.equal(context.ready,false);assert.equal(context.loginRequired,true);assert.equal(classes.has('home-locked'),true);assert.deepEqual(revoked,['blob:private-photo']);assert.equal(cache.size,0);assert.equal(forgotten,pagesMode?1:0);
 });
@@ -24,6 +24,6 @@ test('network failures back off automatic polling while an explicit retry still 
 
 test('unchanged polls preserve content and update presence without rerendering forms',()=>{
  const acceptCode=source.slice(source.indexOf('function accept('),source.indexOf('async function sync('));const room={stories:[{text:'已保存的回忆'}]};let renders=0,presence=0;const classes={remove(){}};
- const context=vm.createContext({state:room,revision:7,received:1,syncTag:'old',members:[],document:{body:{classList:classes}},$:()=>({hidden:true}),status:()=>{},showConnectionRetry:()=>{},render:()=>renders++,renderMemberStatus:()=>presence++});vm.runInContext(acceptCode,context);
+ const context=vm.createContext({state:room,revision:7,received:1,syncTag:'old',members:[],document:{body:{classList:classes}},$:()=>({hidden:true}),status:()=>{},showConnectionRetry:()=>{},render:()=>renders++,renderMemberStatus:()=>presence++,loadPagesPhotos:()=>{}});vm.runInContext(acceptCode,context);
  context.accept({unchanged:true,revision:7,syncTag:'new',me:{slot:1},members:[{slot:2,online:true}]},2);assert.equal(context.state,room);assert.equal(context.ready,true);assert.equal(context.syncTag,'new');assert.equal(context.members[0].online,true);assert.equal(renders,0);assert.equal(presence,1);
 });

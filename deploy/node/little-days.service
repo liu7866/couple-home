@@ -1,0 +1,23 @@
+[Unit]
+Description=Our Little Days
+After=network.target
+
+[Service]
+Type=simple
+User=little-days
+Group=little-days
+WorkingDirectory=/opt/little-days/current
+EnvironmentFile=/etc/little-days.env
+ExecStart=/usr/bin/node /opt/little-days/current/server.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/little-days
+
+[Install]
+WantedBy=multi-user.target

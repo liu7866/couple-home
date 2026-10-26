@@ -1,0 +1,13 @@
+# Local development defaults. Keep this file private after copying to .env.
+HOST=127.0.0.1
+PORT=3000
+APP_ORIGIN=http://127.0.0.1:3000
+TRUST_PROXY=0
+# Production: use absolute persistent paths outside the release directory.
+# DATA_DIR=/var/lib/little-days
+# BACKUP_DIR=/var/backups/little-days
+# APP_ORIGIN=https://your-domain.example
+# TRUST_PROXY=1
+# Optional private first-run code for HTTPS web setup (24-128 characters).
+# If omitted, the server creates a private code and prints it in its startup log.
+# SETUP_CODE=replace-with-your-private-initialization-code

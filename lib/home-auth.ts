@@ -9,11 +9,11 @@ export const SESSION_MS=30*86400000;
 export function randomToken(){return Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('')}
 export async function hashToken(value:string){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join('')}
 export async function nativeOwner(){
-  if(!env.OWNER_LOGIN_EMAIL)throw new HomeError('小屋老大身份尚未配置。',503);
+  if(!env.OWNER_LOGIN_EMAIL)throw new HomeError('小屋管理员身份尚未配置。',503);
   const user=await getChatGPTUser();
   return user?.email.toLowerCase()===env.OWNER_LOGIN_EMAIL.toLowerCase()?user:null;
 }
-export async function requireNativeOwner(){const owner=await nativeOwner();if(!owner)throw new HomeError('请老大使用原来的 ChatGPT 账号登录后设置密码。',403);return owner}
+export async function requireNativeOwner(){const owner=await nativeOwner();if(!owner)throw new HomeError('请管理员使用原来的 ChatGPT 账号登录后设置密码。',403);return owner}
 export function cookieToken(cookie:string|null){const value=cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith(SESSION_COOKIE+'='))?.slice(SESSION_COOKIE.length+1);return value&&/^[a-f0-9]{64}$/.test(value)?value:null}
 export async function homeIdentity(){
   const owner=await nativeOwner();

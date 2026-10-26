@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Our Little Days backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

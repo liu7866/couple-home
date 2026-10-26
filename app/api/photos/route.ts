@@ -16,9 +16,16 @@ export async function POST(req:Request){try{
     exists=!!(await c.db.prepare('SELECT id FROM photos WHERE id=?').bind(id).first());
     if(exists){if(originalDate!==null)await c.db.prepare('UPDATE photos SET created_at=MIN(created_at,?) WHERE id=?').bind(createdAt,id).run();return json({id,caption,url:'/api/photos/'+id,existed:true})}
   }
-  const count=await c.db.prepare('SELECT COUNT(*) AS n FROM photos').first<{n:number}>();if((count?.n||0)>=200)throw new HomeError('相册暂时最多支持 200 张照片。');
+  const count=await c.db.prepare('SELECT COUNT(*) AS n FROM photos').first<{n:number}>();if((count?.n||0)>=2000)throw new HomeError('相册暂时最多支持 2,000 张照片。');
   const objectKey='photos/'+id;
   await c.bucket.put(objectKey,bytes,{httpMetadata:{contentType:'image/jpeg'}});
-  try{await c.db.prepare('INSERT OR IGNORE INTO photos (id,object_key,caption,created_at,user_id) VALUES (?,?,?,?,?)').bind(id,objectKey,caption,createdAt,c.member.userId).run()}catch(e){await c.bucket.delete(objectKey);throw e}
+  // Check capacity inside the write so simultaneous uploads cannot claim the same last slot.
+  let inserted;
+  try{inserted=await c.db.prepare('INSERT OR IGNORE INTO photos (id,object_key,caption,created_at,user_id) SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM photos)<2000').bind(id,objectKey,caption,createdAt,c.member.userId).run()}catch(e){await c.bucket.delete(objectKey);throw e}
+  if(!inserted.meta.changes){
+    const saved=await c.db.prepare('SELECT id FROM photos WHERE id=?').bind(id).first();
+    if(saved){if(originalDate!==null)await c.db.prepare('UPDATE photos SET created_at=MIN(created_at,?) WHERE id=?').bind(createdAt,id).run();return json({id,caption,url:'/api/photos/'+id,existed:true})}
+    await c.bucket.delete(objectKey);throw new HomeError('相册暂时最多支持 2,000 张照片。');
+  }
   return json({id,caption,url:'/api/photos/'+id});
 }catch(e){return fail(e)}}

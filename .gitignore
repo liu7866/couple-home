@@ -45,3 +45,6 @@ yarn-error.log*
 .DS_Store
 
 !.env.example
+/dist-node/
+/data/
+/backups/

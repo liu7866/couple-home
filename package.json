@@ -11,7 +11,12 @@
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build:node": "node scripts/build-node.mjs",
+    "start:node": "node --env-file-if-exists=.env dist-node/server.mjs",
+    "admin:node": "node --env-file-if-exists=.env dist-node/admin.mjs",
+    "backup:node": "node --env-file-if-exists=.env dist-node/backup.mjs",
+    "test:node": "node --test tests/standalone.test.mjs tests/entry-ui.test.mjs tests/pet-album-ui.test.mjs tests/recovery-code.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
