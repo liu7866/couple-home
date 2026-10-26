@@ -32,7 +32,7 @@ window.addEventListener('little-days-page-change',loadPagesPhotos);
 let photoScrollFrame=0;function schedulePhotoLoad(){if(!PAGES_MODE||!ready||photoScrollFrame)return;photoScrollFrame=requestAnimationFrame(()=>{photoScrollFrame=0;loadPagesPhotos()})}
 window.addEventListener('scroll',schedulePhotoLoad,{passive:true});window.addEventListener('resize',schedulePhotoLoad,{passive:true});$('#modal').addEventListener('scroll',schedulePhotoLoad,{passive:true});
 
-const empty=()=>({v:2,names:['你','我'],start:'',intro:'',stories:[],photos:[],wishes:[],letters:[],anniversaries:[],moods:{},pet:{name:'团团',kind:'cat',color:'cream',bornAt:Date.now(),fullness:75,happiness:80,energy:85,xp:0,sleepingUntil:0,careLog:[]}});
+const empty=()=>({v:2,names:['你','我'],start:'',intro:'',stories:[],photos:[],wishes:[],letters:[],anniversaries:[],moods:{},pet:{name:'团团',kind:'cat',color:'cream',bornAt:Date.now(),updatedAt:Date.now(),fullness:75,happiness:80,energy:85,xp:0,sleepingUntil:0,careLog:[]}});
 let state=empty(),me=null,members=[],revision=-1,ready=false,loginRequired=false,pending=0,polling=false,received=0,requestId=0,queue=Promise.resolve(),toastTimer;
 let syncTag='',syncFailures=0,nextSyncAt=0;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

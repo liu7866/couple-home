@@ -6,6 +6,11 @@ import { matchesPagesOrigin } from './pages-origin';
 import { homeSyncTag } from './home-sync-tag.mjs';
 
 export function json(data: unknown, status=200) { return Response.json(data, {status,headers:{'Cache-Control':'no-store','Vary':'Cookie'}}); }
+export function parseObject(raw:string, message='请求内容无效。') {
+  let value;try{value=JSON.parse(raw)}catch{throw new HomeError(message);}
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new HomeError(message);
+  return value;
+}
 export function fail(e: unknown) {
   if(e instanceof HomeError) return json({error:e.message}, e.status);
   console.error('Home request failed',e instanceof Error?e.message:'unknown');

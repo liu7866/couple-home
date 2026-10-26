@@ -156,3 +156,18 @@ test('conditional polling omits unchanged content, requires authentication, and 
  const saved=await post('alice','wish.add',{id:crypto.randomUUID(),text:'新的期待'});assert.equal(saved.status,200);
  const changed=await(await get('/api/home?since='+view.syncTag,'alice')).json();assert.ok(changed.state.wishes.some(w=>w.text==='新的期待'));assert.notEqual(changed.syncTag,view.syncTag);
 });
+
+test('malformed JSON bodies return client errors without changing passwords or shared records',async()=>{
+ const before=await(await get('/api/home','alice')).json();
+ const tables=['member_passwords','home_sessions','recovery_codes'],counts=async()=>Promise.all(tables.map(async table=>(await db.prepare('SELECT COUNT(*) AS n FROM '+table).first()).n));
+ const originalCounts=await counts(),failures=[];let address=180;
+ for(const [route,method]of [['auth','POST'],['passwords','POST'],['recovery','POST'],['recovery','PUT'],['home','POST'],['restore','POST']]){
+  for(const body of ['{','null','[]','"not-an-object"','42','true']){
+   const response=await mf.dispatchFetch(origin+'/api/'+route,{method,headers:{...auth('alice'),Origin:origin,'Content-Type':'application/json','cf-connecting-ip':'203.0.113.'+address++},body});
+   if(response.status!==400)failures.push({route,method,body,status:response.status});
+  }
+ }
+ assert.deepEqual(await counts(),originalCounts);
+ assert.equal((await(await get('/api/home','alice')).json()).revision,before.revision);
+ assert.deepEqual(failures,[]);
+});

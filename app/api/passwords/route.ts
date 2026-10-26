@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { requireNativeOwner } from '../../../lib/home-auth';
 import { ensureMember } from '../../../lib/home-repository.mjs';
-import { json, fail, requireSameOrigin } from '../../../lib/home-server';
+import { json, fail, requireSameOrigin, parseObject } from '../../../lib/home-server';
 import { HomeError } from '../../../lib/home-domain.mjs';
 import { createPassword } from '../../../lib/password.mjs';
 export const dynamic='force-dynamic';
@@ -13,7 +13,7 @@ export async function POST(req:Request){try{
   requireSameOrigin(req);const owner=await requireNativeOwner();if(!env.DB)throw new HomeError('云端正在准备。',503);
   const db=env.DB,now=Date.now();await ensureMember(db,owner,now);
   const raw=await req.text();if(raw.length>2000)throw new HomeError('密码内容太长。');
-  let body;try{body=JSON.parse(raw)}catch{throw new HomeError('请填写要设置的密码。')}
+  const body=parseObject(raw,'请填写要设置的密码。');
   if(![1,2].includes(body.slot))throw new HomeError('请选择小屋成员。');
   const password=await createPassword(body.password);
   let target=await db.prepare('SELECT user_id FROM members WHERE slot=?').bind(body.slot).first<{user_id:string}>();

@@ -10,6 +10,13 @@ vm.runInContext(await readFile('public/pet-view.js','utf8'),viewContext);
 const view=viewContext.LittleDaysPetView;
 const now=Date.UTC(2026,9,26),pet={name:'团团',kind:'cat',color:'cream',xp:0,fullness:70,happiness:65,energy:30,updatedAt:now,sleepingUntil:now+300000,careLog:[]};
 
+test('startup pet values remain finite before the first server response',()=>{
+ const context=vm.createContext({Date});
+ vm.runInContext(source.slice(source.indexOf('const empty='),source.indexOf('let state='))+'globalThis.initial=empty();',context);
+ const projected=view.project(context.initial.pet);
+ for(const key of ['fullness','happiness','energy'])assert.equal(Number.isFinite(projected[key]),true,key+' must not render NaN');
+});
+
 test('growth thresholds change the actual anatomy for both species and escape names',()=>{
  assert.deepEqual([0,199,200,499,500].map(view.stage),['baby','baby','young','young','grown']);
  for(const kind of ['cat','bunny']){

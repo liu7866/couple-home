@@ -1,18 +1,18 @@
 import {env} from 'cloudflare:workers';
 import {requireNativeOwner,hashToken} from '../../../lib/home-auth';
-import {json,fail,requireSameOrigin} from '../../../lib/home-server';
+import {json,fail,requireSameOrigin,parseObject} from '../../../lib/home-server';
 import {HomeError} from '../../../lib/home-domain.mjs';
 import {createPassword} from '../../../lib/password.mjs';
 import {createRecoveryCode,normalizeRecoveryCode} from '../../../lib/recovery-code.mjs';
 export const dynamic='force-dynamic';
 export async function POST(req:Request){try{
- requireSameOrigin(req);const db=env.DB;if(!db)throw new HomeError('云端正在准备。',503);await requireNativeOwner();const raw=await req.text();if(raw.length>2000)throw new HomeError('内容太长。');const body=JSON.parse(raw);
+ requireSameOrigin(req);const db=env.DB;if(!db)throw new HomeError('云端正在准备。',503);await requireNativeOwner();const raw=await req.text();if(raw.length>2000)throw new HomeError('内容太长。');const body=parseObject(raw,'请提交有效的恢复码请求。');
  if(![1,2].includes(body.slot))throw new HomeError('请选择成员。');
  const member=await db.prepare('SELECT user_id FROM member_passwords WHERE slot=?').bind(body.slot).first();if(!member)throw new HomeError('请先为这位成员设置密码。');
  const code=createRecoveryCode();await db.prepare('INSERT INTO recovery_codes (slot,code_hash,created_at) VALUES (?,?,?) ON CONFLICT(slot) DO UPDATE SET code_hash=excluded.code_hash,created_at=excluded.created_at').bind(body.slot,await hashToken(code),Date.now()).run();return json({code,slot:body.slot});
 }catch(e){return fail(e)}}
 export async function PUT(req:Request){try{
- requireSameOrigin(req);const db=env.DB;if(!db)throw new HomeError('云端正在准备。',503);const raw=await req.text();if(raw.length>2000)throw new HomeError('内容太长。');const body=JSON.parse(raw);
+ requireSameOrigin(req);const db=env.DB;if(!db)throw new HomeError('云端正在准备。',503);const raw=await req.text();if(raw.length>2000)throw new HomeError('内容太长。');const body=parseObject(raw,'请提交有效的恢复码请求。');
  const code=normalizeRecoveryCode(body.code);
  if(![1,2].includes(body.slot)||!code)throw new HomeError('身份或恢复码不正确。',401);
  const now=Date.now(),ip=await hashToken('recovery:'+(req.headers.get('cf-connecting-ip')||'unknown'));

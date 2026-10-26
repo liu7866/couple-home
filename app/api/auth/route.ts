@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { json, fail, requireSameOrigin } from '../../../lib/home-server';
+import { json, fail, requireSameOrigin, parseObject } from '../../../lib/home-server';
 import { hashToken, randomToken, sessionCookie, cookieToken, SESSION_MS } from '../../../lib/home-auth';
 import { HomeError } from '../../../lib/home-domain.mjs';
 import { verifyPassword } from '../../../lib/password.mjs';
@@ -12,7 +12,7 @@ export async function POST(req:Request){try{
   const attempt=await db.prepare('SELECT count FROM auth_attempts WHERE ip_hash=?').bind(ipHash).first<{count:number}>();
   if((attempt?.count||0)>10)throw new HomeError('试得有些频繁，10 分钟后再来吧。',429);
   const raw=await req.text();if(raw.length>2000)throw new HomeError('登录内容太长。');
-  let body;try{body=JSON.parse(raw)}catch{throw new HomeError('请填写登录密码。')}
+  const body=parseObject(raw,'请填写登录密码。');
   if(![1,2].includes(body.slot)||typeof body.password!=='string'||body.password.length>128)throw new HomeError('请选择身份并输入正确的密码。',401);
   const record=await db.prepare('SELECT user_id,slot,salt,password_hash,version FROM member_passwords WHERE slot=?').bind(body.slot).first<{user_id:string,slot:number,salt:string,password_hash:string,version:string}>();
   const verified=await verifyPassword(body.password,record);
