@@ -7,7 +7,9 @@ const root = fileURLToPath(new URL('./', import.meta.url));
 const port = Number(process.env.PORT || 3000), host = process.env.HOST || '127.0.0.1';
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('PORT 无效。');
 const app = createApplication({ root, dataDir: resolve(process.env.DATA_DIR || resolve(root, 'data')),
-  origin: process.env.APP_ORIGIN || `http://127.0.0.1:${port}`, trustProxy: process.env.TRUST_PROXY === '1', setupCode: process.env.SETUP_CODE });
+  origin: process.env.APP_ORIGIN || `http://127.0.0.1:${port}`, trustProxy: process.env.TRUST_PROXY === '1', setupCode: process.env.SETUP_CODE,
+  albumAI: { baseURL: process.env.ALBUM_AI_BASE_URL, apiKey: process.env.ALBUM_AI_API_KEY,
+    visionModel: process.env.ALBUM_AI_VISION_MODEL, embeddingModel: process.env.ALBUM_AI_EMBEDDING_MODEL } });
 app.server.listen(port, host, () => {
   if (new URL(app.env.APP_ORIGIN).port === '0') {
     const url = new URL(app.env.APP_ORIGIN); url.port = String(app.server.address().port); app.env.APP_ORIGIN = url.origin;

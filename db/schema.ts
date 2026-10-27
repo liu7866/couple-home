@@ -28,6 +28,21 @@ export const photos = sqliteTable('photos', {
   userId: text('user_id').notNull(),
 });
 
+export const photoAi = sqliteTable('photo_ai', {
+  photoId: text('photo_id').primaryKey().references(() => photos.id, { onDelete: 'cascade' }),
+  description: text('description').notNull(),
+  tags: text('tags').notNull(),
+  category: text('category').notNull(),
+  embedding: text('embedding').notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const photoAiJobs = sqliteTable('photo_ai_jobs', {
+  photoId: text('photo_id').primaryKey().references(() => photos.id, { onDelete: 'cascade' }),
+  expiresAt: integer('expires_at').notNull(),
+});
+
 export const homeKeys = sqliteTable('home_keys', {
   slot: integer('slot').primaryKey(),
   keyHash: text('key_hash').notNull(),

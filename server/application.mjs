@@ -14,13 +14,16 @@ import * as backup from '../app/api/backup/route.ts';
 import * as restore from '../app/api/restore/route.ts';
 import * as photos from '../app/api/photos/route.ts';
 import * as photo from '../app/api/photos/[id]/route.ts';
+import * as albumAIRoutes from '../app/api/album-ai/route.ts';
+import * as albumSearch from '../app/api/album-search/route.ts';
 
 const routes = new Map([['/api/home', home], ['/api/auth', auth], ['/api/passwords', passwords],
-  ['/api/recovery', recovery], ['/api/backup', backup], ['/api/restore', restore], ['/api/photos', photos]]);
+  ['/api/recovery', recovery], ['/api/backup', backup], ['/api/restore', restore], ['/api/photos', photos], ['/api/album-ai', albumAIRoutes], ['/api/album-search', albumSearch]]);
 const staticFiles = new Map([['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/pet-view.js', ['pet-view.js', 'text/javascript; charset=utf-8']], ['/features.js', ['features.js', 'text/javascript; charset=utf-8']], ['/room-helpers.js', ['room-helpers.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']], ['/favicon.svg', ['favicon.svg', 'image/svg+xml']]]);
 staticFiles.set('/entry.js', ['entry.js', 'text/javascript; charset=utf-8']);
+staticFiles.set('/album.js', ['album.js', 'text/javascript; charset=utf-8']);
 const loopback = value => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(value);
 const jsonError = (error, status) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -49,10 +52,12 @@ export function validateOrigin(value) {
   return origin;
 }
 
-export function createApplication({ root, dataDir, origin, trustProxy = false, setupCode }) {
+export function createApplication({ root, dataDir, origin, trustProxy = false, setupCode, albumAI = {} }) {
   validateOrigin(origin);
   const db = openDatabase(dataDir, resolve(root, 'drizzle'));
-  const env = { DB: db, BUCKET: localBucket(dataDir), APP_ORIGIN: origin, PAGES_ORIGIN: '' };
+  const env = { DB: db, BUCKET: localBucket(dataDir), APP_ORIGIN: origin, PAGES_ORIGIN: '',
+    ALBUM_AI_BASE_URL: albumAI.baseURL, ALBUM_AI_API_KEY: albumAI.apiKey,
+    ALBUM_AI_VISION_MODEL: albumAI.visionModel, ALBUM_AI_EMBEDDING_MODEL: albumAI.embeddingModel };
   let entry;
   try { entry = createEntry({ db, dataDir, origin, setupCode }); }
   catch (error) { db.close(); throw error; }
@@ -112,7 +117,7 @@ export function createApplication({ root, dataDir, origin, trustProxy = false, s
       let body;
       if (!['GET', 'HEAD'].includes(method)) {
         const photoUpload = url.pathname === '/api/photos' && method === 'POST';
-        const limit = photoUpload ? 5 * 1024 * 1024 : ['/api/auth', '/api/passwords', '/api/recovery', '/api/setup', '/api/identities'].includes(url.pathname) ? 2000 : 2 * 1024 * 1024;
+        const limit = photoUpload ? 5 * 1024 * 1024 : ['/api/auth', '/api/passwords', '/api/recovery', '/api/setup', '/api/identities', '/api/album-ai', '/api/album-search'].includes(url.pathname) ? 2000 : 2 * 1024 * 1024;
         if (Number(headers.get('content-length') || 0) > limit) throw new HomeError('请求内容太大。', 413);
         body = await readBody(incoming, limit);
         if (body.length && url.pathname.startsWith('/api/')) {

@@ -9,6 +9,7 @@ function reviewResponse(){return {state:ReviewDomain.publicState(reviewState,Dat
 async function reviewFetch(path,options={}){try{
  if(path==='/api/home'&&options.method==='POST'){const op=JSON.parse(options.body);reviewState=ReviewDomain.applyOperation(reviewState,op,{userId:'demo-'+reviewSlot,slot:reviewSlot,displayName:reviewState.names[reviewSlot-1],photoIds:[]},Date.now());reviewRevision++;return Response.json(reviewResponse())}
  if(path==='/api/home')return Response.json(reviewResponse());
+ if(path==='/api/album-ai')return Response.json({enabled:false,provider:'',canAnalyze:true,pendingIds:[],indexed:0});
  if(path==='/api/backup')return Response.json({state:{...structuredClone(reviewState),photos:[]},revision:reviewRevision,updatedAt:Date.now(),exportedAt:new Date().toISOString()});
  if(path==='/api/restore'){const p=JSON.parse(options.body);if(p.expectedRevision!==reviewRevision)throw new Error('预览后内容发生变化，请重新预览。');reviewState=ReviewDomain.restoreState(p.data,{userId:'demo-1',slot:1,displayName:'小月'},Date.now());reviewState.photos=[];reviewRevision++;return Response.json(reviewResponse())}
  return Response.json({error:'这里是演示预览，账号、真实照片上传和恢复码操作未连接服务器。'},{status:400});

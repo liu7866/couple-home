@@ -52,6 +52,7 @@ test('album retains its add tile after the first and subsequent photos',()=>{
  const context=vm.createContext({state:{photos:[]},$:get,renderContent:(s,html)=>outputs[s]=html,esc:String,photoSource:id=>'/api/photos/'+id,Date});
  vm.runInContext(source.slice(source.indexOf("let albumMonth="),source.indexOf("$('#album-month').onchange=")),context);
  for(const count of [0,1,30]){context.state.photos=Array.from({length:count},(_,i)=>({id:'p'+i,created_at:now,caption:'回忆'}));context.renderAlbum();assert.match(outputs['#photo-list'],/data-upload/);assert.match(outputs['#photo-list'],/继续添加照片/);if(count)assert.match(outputs['#photo-list'],/has-photo/)}
+ context.LittleDaysAlbum={filter:()=>[],renderTools(){}};context.renderAlbum();assert.match(get('#album-count').textContent,/没有符合当前搜索或筛选/);
 });
 
 function uploadFixture(){

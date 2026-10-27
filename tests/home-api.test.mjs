@@ -171,3 +171,11 @@ test('malformed JSON bodies return client errors without changing passwords or s
  assert.equal((await(await get('/api/home','alice')).json()).revision,before.revision);
  assert.deepEqual(failures,[]);
 });
+
+test('optional album AI routes remain private and disabled when no provider is configured',async()=>{
+ assert.equal((await get('/api/album-ai')).status,401);
+ const status=await(await get('/api/album-ai','alice')).json();assert.equal(status.enabled,false);assert.equal(status.provider,'');
+ const denied=await mf.dispatchFetch(origin+'/api/album-search',{method:'POST',headers:{...auth('alice'),Origin:'https://evil.test','Content-Type':'application/json'},body:JSON.stringify({query:'海边'})});assert.equal(denied.status,403);
+ const disabled=await mf.dispatchFetch(origin+'/api/album-search',{method:'POST',headers:{...auth('alice'),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({query:'海边'})});assert.equal(disabled.status,503);
+ const consent=await mf.dispatchFetch(origin+'/api/album-ai',{method:'POST',headers:{...auth('alice'),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({photoId:'fixture-photo'})});assert.equal(consent.status,400);
+});

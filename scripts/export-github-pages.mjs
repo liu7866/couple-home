@@ -8,6 +8,7 @@ if(parsedOrigin.protocol!=='https:'||parsedOrigin.origin!==apiOrigin)throw new E
 await mkdir(output,{recursive:true});
 let html=await readFile('app/home.html','utf8');
 html=html.replace('href="/style.css','href="./style.css').replace('src="/app.js','src="./app.js').replace('src="/features.js','src="./features.js').replace('src="/room-helpers.js','src="./room-helpers.js').replace('src="/pet-view.js','src="./pet-view.js');
+html=html.replace('src="/album.js','src="./album.js');
 html=html.replace('href="/signin-with-chatgpt?return_to=%2F"',`href="${apiOrigin}/signin-with-chatgpt?return_to=%2F"`);
 html=html.replace('<script src="./app.js',`<script>window.LITTLE_DAYS_API_ORIGIN=${JSON.stringify(apiOrigin)};</script><script src="./app.js`);
 html=html.replace('首次入住？管理员先进入「双人设置」，为两位成员设置密码。','首次入住？管理员先设置密码。私人设备可选择记住登录。');
@@ -17,6 +18,7 @@ await copyFile('public/room-helpers.js',resolve(output,'room-helpers.js'));
 await copyFile('public/pet-view.js',resolve(output,'pet-view.js'));
 await copyFile('public/app.js',resolve(output,'app.js'));
 await copyFile('public/features.js',resolve(output,'features.js'));
+await copyFile('public/album.js',resolve(output,'album.js'));
 await writeFile(resolve(output,'.nojekyll'),'');
 await writeFile(resolve(output,'README.md'),'# 我们的小日子 · GitHub Pages\n\n情侣小屋网页版：纪念日、恋爱时间线、相册、双人心情与共同照顾的电子宠物。\n\n这个仓库只保存可公开的前端代码。密码验证、照片与回忆存储由导出时指定的自己的后端提供。仓库不包含用户照片、留言、登录密码或数据库内容。\n\n首次使用：管理员在自己的后端设置两位成员的密码，之后在这里选择身份并输入相应密码。GitHub 版可在私人设备上选择记住登录 30 天。\n\nGitHub Pages 设置：Deploy from a branch → main → /(root)。\n');
-console.log(JSON.stringify({output,files:['index.html','style.css','app.js','features.js','room-helpers.js','pet-view.js','.nojekyll','README.md']}));
+console.log(JSON.stringify({output,files:['index.html','style.css','app.js','features.js','room-helpers.js','pet-view.js','album.js','.nojekyll','README.md']}));

@@ -16,7 +16,7 @@
     "start:node": "node --env-file-if-exists=.env dist-node/server.mjs",
     "admin:node": "node --env-file-if-exists=.env dist-node/admin.mjs",
     "backup:node": "node --env-file-if-exists=.env dist-node/backup.mjs",
-    "test:node": "node --test tests/standalone.test.mjs tests/entry-ui.test.mjs tests/pet-album-ui.test.mjs tests/recovery-code.test.mjs"
+    "test:node": "node --test tests/standalone.test.mjs tests/entry-ui.test.mjs tests/pet-album-ui.test.mjs tests/recovery-code.test.mjs tests/album-ai.test.mjs tests/album-search-ui.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
