@@ -93,6 +93,12 @@ test('optional AI album integrates with isolated accounts, photos and a mock com
   await t.test('semantic search matches similar meaning without shared caption words and excludes unrelated photos', async () => {
     const response = await call('/api/album-search', { method: 'POST', cookie: partner, body: { query: '傍晚海岸的金色天空' } }); assert.equal(response.status, 200);
     const data = await response.json(); assert.deepEqual(data.matches.map(match => match.id), [beach]); assert.equal(data.indexed, 2);
+    const seed=app.db.raw.prepare('SELECT * FROM photo_ai WHERE photo_id=?').get(beach),owner=app.db.raw.prepare('SELECT user_id FROM members WHERE slot=1').get().user_id;
+    const insertPhoto=app.db.raw.prepare('INSERT INTO photos (id,object_key,caption,created_at,user_id) VALUES (?,?,?,?,?)');
+    const insertAI=app.db.raw.prepare('INSERT INTO photo_ai (photo_id,description,tags,category,embedding,embedding_model,updated_at) VALUES (?,?,?,?,?,?,?)');
+    for(let i=0;i<101;i++){const id='rank-fixture-'+String(i).padStart(3,'0');insertPhoto.run(id,'photos/fixture','',Date.now(),owner);insertAI.run(id,seed.description,seed.tags,seed.category,seed.embedding,seed.embedding_model,seed.updated_at)}
+    const many=await(await call('/api/album-search',{method:'POST',cookie,body:{query:'海岸'}})).json();assert.equal(many.matches.length,102);
+    app.db.raw.prepare("DELETE FROM photos WHERE id LIKE 'rank-fixture-%'").run();
     const before = requests;
     for (const query of ['', ' '.repeat(2), 'x'.repeat(201), null]) assert.equal((await call('/api/album-search', { method: 'POST', cookie, body: { query } })).status, 400);
     assert.equal(requests, before);

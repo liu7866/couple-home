@@ -41,6 +41,12 @@ test('keyword, category and month filters combine while requiring no AI calls', 
   f.get('#album-category').onchange({ target: { value: '' } }); assert.equal(f.filter('2026-10').length, 2);
   assert.ok(f.calls.every(call => call.path === '/api/album-ai' && !call.options.method));
 });
+test('unindexed filter includes old metadata when the current model requires reindexing', async () => {
+ const f=fixture();await f.flush();f.context.LittleDaysAlbum.reset();
+ f.context.api=async()=>({enabled:true,provider:'https://ai.example',canAnalyze:true,pendingIds:['beach-photo','new-photo'],indexed:1});
+ f.context.LittleDaysAlbum.renderTools();await f.flush();f.get('#album-category').onchange({target:{value:'unindexed'}});
+ assert.deepEqual(f.filter(),['beach-photo','new-photo']);
+});
 test('semantic results use provider rank, retain filters, and invalidate when album indexes change', async () => {
   const f = fixture(); await f.flush(); f.search = async () => ({ matches: [{ id: 'dinner-photo' }, { id: 'beach-photo' }], indexed: 2 });
   f.input('想起那一天'); await f.get('#album-semantic').onclick(); assert.deepEqual(f.filter(), ['dinner-photo', 'beach-photo']);

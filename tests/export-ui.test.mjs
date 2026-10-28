@@ -17,3 +17,18 @@ test('backup and import transitions preserve a settings form when dismissal is d
  const importer=source.slice(source.indexOf('function importData()'),source.indexOf('function backupRecordCount('));let modals=0;
  const c=vm.createContext({needReady:()=>true,requestModalClose:()=>false,modal:()=>modals++,document:{createElement(){throw Error('must not open a picker')}},close(){throw Error('must not force-close')}});vm.runInContext(backup+importer,c);c.fullBackupInfo();c.importData();assert.equal(modals,0);
 });
+test('backup preview accepts up to 2000 photos and rejects 2001',()=>{
+ const code=source.slice(source.indexOf('function importConfirm('),source.indexOf('function importData()'));let opened=0,message='';
+ const node={};const c=vm.createContext({revision:1,me:{},modal:()=>opened++,toast:x=>message=x,esc:String,close(){},$:()=>node,Number,Object,Array});vm.runInContext(code,c);
+ const backup={v:2,names:['A','B'],photos:[],stories:[],wishes:[],letters:[],anniversaries:[]};
+ for(const count of [201,2000]){backup.photos=Array(count).fill({});c.importConfirm(backup);assert.equal(opened,count===201?1:2)}
+ backup.photos=Array(2001).fill({});c.importConfirm(backup);assert.equal(opened,2);assert.match(message,/备份内容不完整/);
+});
+test('a 201-photo backup can complete the merge after validation',async()=>{
+ const code=source.slice(source.indexOf('function importConfirm('),source.indexOf('function importData()'));
+ const nodes={'#confirm-import':{},'#cancel-import':{},'#restore-progress':{},'#modal':{dataset:{}}};let uploaded=0,merged=false,notice='';
+ const c=vm.createContext({revision:1,me:{},state:{photos:[]},modal(){},toast:x=>notice=x,esc:String,close(){},fetch,crypto,Date,Map,
+  $:s=>nodes[s]||null,uploadPhoto:async()=>({id:'uploaded-'+(++uploaded),existed:false}),mutate:async(kind,payload)=>{assert.equal(kind,'import');assert.equal(payload.data.photos.length,0);merged=true},refreshNow:async()=>{},checkMigration(){}});
+ vm.runInContext(code,c);const backup={v:2,names:['A','B'],photos:Array.from({length:201},(_,i)=>({id:'fixture-'+i,data:'data:image/jpeg;base64,/9j/'})),stories:[],wishes:[],letters:[],anniversaries:[]};
+ c.importConfirm(backup);await nodes['#confirm-import'].onclick();assert.equal(uploaded,201);assert.equal(merged,true);assert.match(notice,/回忆已合并/);
+});

@@ -8,7 +8,7 @@
     const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
     const rank = matches ? new Map(matches.map((match, i) => [match.id, i])) : null;
     const result = photos.filter(photo => (!month || new Date(photo.created_at + 8 * 3600000).toISOString().startsWith(month)) &&
-      (!category || (category === 'unindexed' ? !photo.ai : photo.ai?.category === category)) &&
+      (!category || (category === 'unindexed' ? (config?.enabled ? config.pendingIds.includes(photo.id) : !photo.ai) : photo.ai?.category === category)) &&
       (rank ? rank.has(photo.id) : words.every(word => [photo.caption, photo.ai?.description, ...(photo.ai?.tags || [])].join(' ').toLocaleLowerCase().includes(word))));
     if (rank) result.sort((a, b) => rank.get(a.id) - rank.get(b.id));
     return result;
@@ -24,7 +24,7 @@
     const started = epoch; checking = true; checkedAt = Date.now();
     try { const data = await api('/api/album-ai'); if (started !== epoch) return; config = data; }
     catch { if (started === epoch) config = null; }
-    finally { if (started === epoch) { checking = false; renderTools(); } }
+    finally { if (started === epoch) { checking = false; if (category === 'unindexed') paint(); else renderTools(); } }
   }
   function renderTools() {
     const counts = new Map(); for (const photo of state.photos) if (photo.ai) counts.set(photo.ai.category, (counts.get(photo.ai.category) || 0) + 1);
