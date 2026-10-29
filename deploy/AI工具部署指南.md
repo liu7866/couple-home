@@ -7,6 +7,7 @@
 | 目标 | 需要准备 | 结果 |
 | --- | --- | --- |
 | 本机试用 | 一台电脑、可访问 GitHub 的网络，以及能运行命令的 AI 工具或终端 | 只能在该电脑上通过本机地址访问；电脑停止服务后网站也会停止 |
+| 自己的电脑 + Cloudflare Tunnel | 保持运行的电脑、cloudflared；长期使用另需 Cloudflare 账号和域名 | 后端和数据在电脑，外部通过 Tunnel 访问；详见 [Tunnel 指南](cloudflare-tunnel.md) |
 | 阿里云或其他 Linux 服务器 | 可连接的服务器、SSH 账号、域名及 HTTPS 证书，并按当地要求完成手续 | 网站和后端运行在自己的服务器上，照片及数据由自己保存 |
 | Cloudflare 代理 + Linux 服务器 | 上述服务器和域名，以及自己的 Cloudflare 账号 | Cloudflare 管理域名或代理，后端和数据仍在服务器 |
 
@@ -99,6 +100,8 @@ deploy/cloudflare.md，协助我把已有的独立 Node 服务器接入 Cloudfla
 ```
 
 Cloudflare 接入不会替代后端或自动迁移数据；没有真实配置和验证时，不应声称已经上线。
+
+如果希望后端运行在自己的 Windows 电脑而不是云服务器，请让 AI 先阅读 [电脑 + Cloudflare Tunnel 部署指南](cloudflare-tunnel.md)，选择临时体验或固定域名路线；已有数据必须先备份，测试应使用独立目录，不要将 Tunnel 令牌、初始化码或密码粘贴到对话里。
 
 ## Qoder
 

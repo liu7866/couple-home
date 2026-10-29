@@ -2,6 +2,8 @@
 
 更新：2026-10-25。先选清楚部署方式，三种方式的数据和登录入口不同。
 
+如果想让自己的电脑运行 Node 后端，并通过 Cloudflare Tunnel 提供访问入口，请看单独的 [电脑 + Cloudflare Tunnel 部署指南](cloudflare-tunnel.md)。这不需要将后端迁入 Workers。
+
 ## 方式一：Cloudflare 域名代理 + 阿里云后端
 
 这条路径使用已经完成适配的独立 Node.js 版本，不依赖 ChatGPT 登录。

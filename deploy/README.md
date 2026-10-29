@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | 阿里云 / 普通 Linux 服务器 | `dist-node/`，SQLite，本地照片，独立成员密码 | 本地构建及接口验证通过，待服务器验收 | [阿里云部署](node/部署说明.md) |
 | Cloudflare DNS/代理 + 阿里云后端 | 同上，Cloudflare 负责域名与代理 | 配置方法已说明，未实网验证 | [Cloudflare 接入](cloudflare.md#方式一cloudflare-域名代理--阿里云后端) |
+| 自己的电脑 + Cloudflare Tunnel | 本机 `dist-node/`、SQLite 和照片，Tunnel 提供访问入口 | 已提供操作指南，真实 Tunnel 部署需自行验收 | [电脑 + Tunnel 部署](cloudflare-tunnel.md) |
 | 原 Sites 托管的 Cloudflare Workers + D1 + R2 | `worker/`、`app/api/`，原平台身份入口 | 现有原站的托管方式 | [原托管版本维护](cloudflare.md#方式二原托管平台上的-workers--d1--r2) |
 | 自己账号下完全独立的 Workers + D1 + R2 | 需补账号初始化和可信管理员认证，再绑定自己的云资源 | 尚未完成独立部署适配，不能宣称一键可用 | [独立 Workers 的限制](cloudflare.md#方式三迁到自己的-cloudflare-workers-账号当前未完成) |
 
