@@ -44,6 +44,7 @@ pnpm run start:node
 - [部署方式总览](deploy/README.md)
 - [阿里云 / Linux 部署](deploy/node/部署说明.md)
 - [Cloudflare 接入及 Workers 限制](deploy/cloudflare.md)
+- [使用 AI 工具协助部署](deploy/AI工具部署指南.md)
 - [本地使用与迁移](本地使用说明.md)
 - [验证记录](deploy/node/验证结果.md)
 
