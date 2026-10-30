@@ -28,6 +28,13 @@ test('growth thresholds change the actual anatomy for both species and escape na
  }
 });
 
+test('custom stages switch visuals at configured thresholds and escape unsafe content',()=>{
+ const stages=[{name:'起步',start:0,kind:'cat',shape:'baby',color:'#123456',accessory:'bow'},{name:'未来',start:50,kind:'bunny',shape:'grown',color:'#654321',accessory:'star'}];
+ assert.equal(view.currentStage({...pet,stages,xp:49}).current.name,'起步');assert.equal(view.currentStage({...pet,stages,xp:50}).current.name,'未来');
+ const first=view.art({...pet,stages,xp:49}),second=view.art({...pet,stages,xp:50});assert.match(first,/#123456/);assert.match(second,/#654321/);assert.match(second,/★/);assert.notEqual(first,second);
+ const unsafe=view.art({...pet,stages:[{...stages[0],color:'" onload="x'}],xp:0});assert.ok(!unsafe.includes('onload='));
+});
+
 test('live bars use the same elapsed-time and sleep recovery formula as the server',()=>{
  for(const delta of [0,1000,120000,300000,301000,3600000,86400000]){
   const projected=view.project(pet,now+delta),server=petNow(pet,now+delta);

@@ -1,9 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initialState, applyOperation, publicState, petNow, sharedToday, HomeError } from '../lib/home-domain.mjs';
+import { initialState, applyOperation, publicState, petNow, sharedToday, HomeError, restoreState } from '../lib/home-domain.mjs';
 const now=Date.parse('2026-10-23T16:30:00Z');
 const alice={userId:'alice',slot:1,displayName:'Alice'},bob={userId:'bob',slot:2,displayName:'Bob'};
 const op=(kind,payload,id=crypto.randomUUID())=>({id,kind,payload});
+
+test('both members can customize stages and full backups restore them without changing growth',()=>{
+ const stages=[{name:'蛋糕',start:0,kind:'bunny',shape:'baby',color:'#AABBCC',accessory:'bow'},{name:'星星',start:120,kind:'cat',shape:'grown',color:'#102030',accessory:'star'}];
+ let s=initialState(now);s.pet.xp=125;const payload={name:'小团',petKind:'cat',color:'cream',stages};
+ s=applyOperation(s,op('pet.settings',payload),alice,now);assert.equal(s.pet.xp,125);assert.equal(s.pet.stages[0].color,'#aabbcc');
+ const changed=structuredClone(stages);changed[1].name='月亮';s=applyOperation(s,op('pet.settings',{...payload,stages:changed}),bob,now);
+ assert.equal(publicState(s,now,1).pet.stages[1].name,'月亮');assert.deepEqual(restoreState(s,alice,now+1).pet.stages,s.pet.stages);
+ const legacy=initialState(now);assert.equal(restoreState(legacy,alice,now+1).pet.stages,undefined);
+ for(const invalid of [[stages[0]], [{...stages[0],start:1},stages[1]],[stages[0],{...stages[1],start:0}],[stages[0],{...stages[1],color:'red;evil'}]])assert.throws(()=>applyOperation(s,op('pet.settings',{...payload,stages:invalid}),bob,now),HomeError);
+});
 
 test('two members keep separate moods and both contributions',()=>{
  let s=initialState(now);
